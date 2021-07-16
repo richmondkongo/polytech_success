@@ -1,0 +1,516 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+# Chargement des donnees
+
+```{r}
+
+library(readxl)
+library(tidyverse)
+
+
+data_cdt_17_18 = read_excel("df2017.xlsx", sheet = "candidat")
+data_note_17_18 = read_excel("df2017.xlsx", sheet = "test")
+data_17_18 = read_excel("df2017.xlsx", sheet = "note")
+
+#data_cdt_17_18$etablissementOrigine[is.na(data_cdt_17_18$etablissementOrigine)] = "AUTRE"
+#data_cdt_17_18 = data_cdt_17_18 %>% drop_na()
+
+data_ACP = full_join(data_cdt_17_18, data_17_18)
+
+data_ACP = merge(data_ACP, data_note_17_18, by=c("identifiantCandidat", "annee"), all.x = TRUE, all.y = FALSE)
+#full_join(data_ACP, data_note_17_18)
+
+#data_ACP$ANGLAIS[is.na(data_ACP$ANGLAIS)]=0
+#data_ACP$`CULTURE GENERALE`[is.na(data_ACP$`CULTURE GENERALE`)]=0
+#data_ACP$`CULTURE SCIENTIFIQUE`[is.na(data_ACP$`CULTURE SCIENTIFIQUE`)]=0
+
+
+data_ACP$Nationalite = toupper(data_ACP$Nationalite)
+data_ACP$serie = toupper(data_ACP$serie)
+data_ACP$mentionAuBac = toupper(data_ACP$mentionAuBac)
+data_ACP$etablissementOrigine = toupper(data_ACP$etablissementOrigine)
+data_ACP$DREN = toupper(data_ACP$DREN)
+data_ACP$redoublementTerminale = toupper(data_ACP$redoublementTerminale)
+
+
+#suppression de la variable date de naissance pour garder la variable age
+data_ACP = data_ACP%>%select(-dateNaissance)
+```
+
+
+
+```{r}
+#creation des datasets par serie
+
+acp_serie_A1 = data_ACP[data_ACP$serie == "A1",]
+acp_serie_A1 = acp_serie_A1[,apply(acp_serie_A1, 2, function(x) !all(is.na(x)))]
+
+acp_serie_A2 = data_ACP[data_ACP$serie == "A2", ]
+acp_serie_A2 = acp_serie_A2[,apply(acp_serie_A2, 2, function(x) !all(is.na(x)))]
+
+acp_serie_B = data_ACP[data_ACP$serie == "B", ]
+acp_serie_B = acp_serie_B[,apply(acp_serie_B, 2, function(x) !all(is.na(x)))]
+
+acp_serie_BT_COMPTA = data_ACP[data_ACP$serie == "BT COMPTA",]
+acp_serie_BT_COMPTA = acp_serie_BT_COMPTA[,apply(acp_serie_BT_COMPTA, 2, function(x) !all(is.na(x)))]
+
+acp_serie_BT_GC = data_ACP[data_ACP$serie == "BT GC",]
+acp_serie_BT_GC = acp_serie_BT_GC[,apply(acp_serie_BT_GC, 2, function(x) !all(is.na(x)))]
+
+acp_serie_BT_STGI = data_ACP[data_ACP$serie == "BT STGI",]
+acp_serie_BT_STGI = acp_serie_BT_STGI[,apply(acp_serie_BT_STGI, 2, function(x) !all(is.na(x)))]
+
+acp_serie_BT_STGP = data_ACP[data_ACP$serie == "BT STGP",]
+acp_serie_BT_STGP = acp_serie_BT_STGP[,apply(acp_serie_BT_STGP, 2, function(x) !all(is.na(x)))]
+
+acp_serie_BT_STIC = data_ACP[data_ACP$serie == "BT STGP",]
+acp_serie_BT_STIC = acp_serie_BT_STIC[,apply(acp_serie_BT_STIC, 2, function(x) !all(is.na(x)))]
+
+acp_serie_C = data_ACP[data_ACP$serie == "C", ]
+acp_serie_C = acp_serie_C[,apply(acp_serie_C, 2, function(x) !all(is.na(x)))]
+
+acp_serie_D = data_ACP[data_ACP$serie == "D", ]
+acp_serie_D = acp_serie_D[,apply(acp_serie_D, 2, function(x) !all(is.na(x)))]
+
+acp_serie_E = data_ACP[data_ACP$serie == "E",]
+acp_serie_E = acp_serie_E[,apply(acp_serie_E, 2, function(x) !all(is.na(x)))]
+
+acp_serie_F1 = data_ACP[data_ACP$serie == "F1",]
+acp_serie_F1 = acp_serie_F1[,apply(acp_serie_F1, 2, function(x) !all(is.na(x)))]
+
+acp_serie_F2 = data_ACP[data_ACP$serie == "F2",]
+acp_serie_F2 = acp_serie_F2[,apply(acp_serie_F2, 2, function(x) !all(is.na(x)))]
+
+acp_serie_F3 = data_ACP[data_ACP$serie == "F3",]
+acp_serie_F3 = acp_serie_F3[,apply(acp_serie_F3, 2, function(x) !all(is.na(x)))]
+
+acp_serie_F4 = data_ACP[data_ACP$serie == "F4",]
+acp_serie_F4 = acp_serie_F4[,apply(acp_serie_F4, 2, function(x) !all(is.na(x)))]
+
+acp_serie_F7 = data_ACP[data_ACP$serie == "F7",]
+acp_serie_F7 = acp_serie_F7[,apply(acp_serie_F7, 2, function(x) !all(is.na(x)))]
+
+acp_serie_G2 = data_ACP[data_ACP$serie == "G2",]
+acp_serie_G2 = acp_serie_G2[,apply(acp_serie_G2, 2, function(x) !all(is.na(x)))]
+
+acp_serie_D = acp_serie_D%>%select(-`TLE_SCIENCES ECONOMIQUE ET SOCIALE`, -`BAC_SCIENCES ECONOMIQUE ET SOCIALE`, -`1ERE_SCIENCES ECONOMIQUE ET SOCIALE`, -`2NDE_SCIENCES ECONOMIQUE ET SOCIALE`)
+```
+
+
+
+# I - ACP serie D
+
+```{r}
+acp_serie_C = acp_serie_C%>%select(-identifiantCandidat, -genre, -Nationalite, -serie, -mentionAuBac, -redoublementTerminale, -rangEnTerminale, -etablissementOrigine, -FiliereAccueil, -Cycle, -EcoleAccueil,  -DREN, -age, -annee)
+```
+
+```{r}
+# typage des variables
+acp_serie_C$admissible = as.factor(acp_serie_C$admissible)
+acp_serie_C$admis = as.factor(acp_serie_C$admis)
+acp_serie_C$BAC_ANGLAIS = as.numeric(acp_serie_C$BAC_ANGLAIS)
+acp_serie_C$BAC_FRANCAIS = as.numeric(acp_serie_C$BAC_FRANCAIS)
+acp_serie_C$BAC_MATHEMATIQUES = as.numeric(acp_serie_C$BAC_MATHEMATIQUES)
+acp_serie_C$BAC_SVT = as.numeric(acp_serie_C$BAC_SVT)
+acp_serie_C$`BAC_SCIENCES PHYSIQUES` = as.numeric(acp_serie_C$`BAC_SCIENCES PHYSIQUES`)
+acp_serie_C$`1ERE_ANGLAIS` = as.numeric(acp_serie_C$`1ERE_ANGLAIS`)
+acp_serie_C$`1ERE_FRANCAIS` = as.numeric(acp_serie_C$`1ERE_FRANCAIS`)
+acp_serie_C$`1ERE_MATHEMATIQUES` = as.numeric(acp_serie_C$`1ERE_MATHEMATIQUES`)
+acp_serie_C$`1ERE_SVT` = as.numeric(acp_serie_C$`1ERE_SVT`)
+acp_serie_C$`1ERE_SCIENCES PHYSIQUES` = as.numeric(acp_serie_C$`1ERE_SCIENCES PHYSIQUES`)
+acp_serie_C$`2NDE_ANGLAIS` = as.numeric(acp_serie_C$`2NDE_ANGLAIS`)
+acp_serie_C$`2NDE_FRANCAIS` = as.numeric(acp_serie_C$`2NDE_FRANCAIS`)
+acp_serie_C$`2NDE_MATHEMATIQUES` = as.numeric(acp_serie_C$`2NDE_MATHEMATIQUES`)
+acp_serie_C$`2NDE_SVT` = as.numeric(acp_serie_C$`2NDE_SVT`)
+acp_serie_C$`2NDE_SCIENCES PHYSIQUES` = as.numeric(acp_serie_C$`2NDE_SCIENCES PHYSIQUES`)
+acp_serie_C$TLE_ANGLAIS = as.numeric(acp_serie_C$TLE_ANGLAIS)
+acp_serie_C$TLE_FRANCAIS = as.numeric(acp_serie_C$TLE_FRANCAIS)
+acp_serie_C$TLE_MATHEMATIQUES = as.numeric(acp_serie_C$TLE_MATHEMATIQUES)
+acp_serie_C$TLE_SVT = as.numeric(acp_serie_C$TLE_SVT)
+acp_serie_C$`TLE_SCIENCES PHYSIQUES` = as.numeric(acp_serie_C$`TLE_SCIENCES PHYSIQUES`)
+```
+
+## 1) Caracterisation des admissibles parmi les candidats valides
+
+les variables utilisées sont les notes des candidats de 2NDE, 1ERE, TLE et au BAC. La variable qualitative Admissible a été mise en supplémentaire.
+
+```{r}
+acp_serie_C_admissible = acp_serie_C
+
+#supression des variables
+acp_serie_C_admissible = acp_serie_C_admissible%>%select(-admis, -ANGLAIS, -`CULTURE GENERALE`, -`CULTURE SCIENTIFIQUE`)
+
+#verification de valeur manquantes
+sum(is.na(acp_serie_C_admissible))
+which(is.na(acp_serie_C_admissible), arr.ind = T)
+View(acp_serie_C_admissible)
+acp_serie_C_admissible[5956, 5]
+#supression des 5 candidats de serie ES et S
+
+#acp_serie_C_admissible = acp_serie_C_admissible %>% drop_na()
+```
+
+
+### a) caracterisation en dim (1,2)
+
+```{r}
+library(FactoMineR)
+
+res.pca_D = PCA(acp_serie_C_admissible, quali.sup = 1, ncp = 8)
+```
+
+
+```{r}
+library(factoextra)
+fviz_eig(res.pca_D, addlabels = TRUE)
+```
+
+
+```{r}
+fviz_pca_var(res.pca_D, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+### b) caracterisation en dim (1,3)
+
+```{r}
+res.pca_D2 = PCA(acp_serie_C_admissible, quali.sup = 1, ncp = 8, axes = c(1,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_D2, axes = c(1,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = FALSE)
+```
+
+### c) caracterisation en dim (2,3)
+
+```{r}
+res.pca_D3 = PCA(acp_serie_C_admissible, quali.sup = 1, ncp = 8, axes = c(2,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_D3, axes = c(2,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+## 2) Caracterisation des admis parmi les candidats admissibles
+
+
+les variables utilisées sont les notes des candidats de 2NDE, 1ERE, TLE et au BAC ainsi que les notes au test ecrit des candidats admissibles. La variable qualitative Admis a été mise en supplémentaire.
+
+
+```{r}
+#selection des candidats admissibles
+acp_serie_C_admis = acp_serie_C[acp_serie_C$admissible=="1",]
+
+#suppression de la variable admissible
+acp_serie_C_admis = acp_serie_C_admis%>%select(-admissible)
+
+#supression des candidats de serie ES et S
+acp_serie_C_admis = acp_serie_C_admis%>%drop_na()
+```
+
+
+### a) caracterisation en dim (1,2)
+
+```{r}
+library(FactoMineR)
+
+res.pca_ad_D = PCA(acp_serie_C_admis, quali.sup = 1, ncp = 8)
+```
+
+
+```{r}
+library(factoextra)
+
+fviz_eig(res.pca_ad_D, addlabels = TRUE)
+```
+
+
+```{r}
+fviz_pca_var(res.pca_ad_D, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+### b) caracterisation en dim (1,3)
+
+```{r}
+res.pca_ad_D2 = PCA(acp_serie_C_admis, quali.sup = 1, ncp = 8, axes = c(1,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_ad_D2, axes = c(1,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = FALSE)
+```
+
+### c) caracterisation en dim (2,3)
+
+```{r}
+res.pca_ad_D3 = PCA(acp_serie_C_admis, quali.sup = 1, ncp = 8, axes = c(2,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_ad_D3, axes = c(2,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+
+
+# II - ACP Serie A1
+
+```{r}
+acp_serie_A2 = acp_serie_A2%>%select(-identifiantCandidat, -genre, -Nationalite, -serie, -mentionAuBac, -redoublementTerminale, -rangEnTerminale, -etablissementOrigine, -FiliereAccueil, -Cycle, -EcoleAccueil,  -DREN, -age, -annee)
+```
+
+```{r}
+# typage des variables
+acp_serie_A2$admissible = as.factor(acp_serie_A2$admissible)
+acp_serie_A2$admis = as.factor(acp_serie_A2$admis)
+acp_serie_A2$BAC_ANGLAIS = as.numeric(acp_serie_A2$BAC_ANGLAIS)
+acp_serie_A2$BAC_FRANCAIS = as.numeric(acp_serie_A2$BAC_FRANCAIS)
+acp_serie_A2$BAC_MATHEMATIQUES = as.numeric(acp_serie_A2$BAC_MATHEMATIQUES)
+acp_serie_A2$`1ERE_ANGLAIS` = as.numeric(acp_serie_A2$`1ERE_ANGLAIS`)
+acp_serie_A2$`1ERE_FRANCAIS` = as.numeric(acp_serie_A2$`1ERE_FRANCAIS`)
+acp_serie_A2$`1ERE_MATHEMATIQUES` = as.numeric(acp_serie_A2$`1ERE_MATHEMATIQUES`)
+acp_serie_A2$`2NDE_ANGLAIS` = as.numeric(acp_serie_A2$`2NDE_ANGLAIS`)
+acp_serie_A2$`2NDE_FRANCAIS` = as.numeric(acp_serie_A2$`2NDE_FRANCAIS`)
+acp_serie_A2$`2NDE_MATHEMATIQUES` = as.numeric(acp_serie_A2$`2NDE_MATHEMATIQUES`)
+acp_serie_A2$`TLE_ANGLAIS` = as.numeric(acp_serie_A2$`TLE_ANGLAIS`)
+acp_serie_A2$`TLE_FRANCAIS` = as.numeric(acp_serie_A2$`TLE_FRANCAIS`)
+acp_serie_A2$`TLE_MATHEMATIQUES` = as.numeric(acp_serie_A2$`TLE_MATHEMATIQUES`)
+```
+
+
+## 1) Caracterisation des admissibles parmi les candidats valides
+
+les variables utilisées sont les notes des candidats de 2NDE, 1ERE, TLE et au BAC. La variable qualitative Admissible a été mise en supplémentaire.
+
+```{r}
+acp_serie_A2_admissible = acp_serie_A2
+
+acp_serie_A2_admissible = acp_serie_A2_admissible%>%select(-admis, -ANGLAIS, -`CULTURE GENERALE`, -`CULTURE SCIENTIFIQUE`)
+
+#verification de valeur manquantes
+sum(is.na(acp_serie_A2_admissible))
+```
+
+### a) caracterisation en dim (1,2)
+
+```{r}
+res.pca_A1 = PCA(acp_serie_A2_admissible, quali.sup = 1, ncp = 8)
+```
+
+```{r}
+library(factoextra)
+
+fviz_eig(res.pca_A1, addlabels = TRUE)
+```
+
+```{r}
+fviz_pca_var(res.pca_A1, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+
+### b) caracterisation en dim (1,3)
+
+```{r}
+res.pca_A12 = PCA(acp_serie_A2_admissible, quali.sup = 1, ncp = 8, axes = c(1,3))
+```
+
+
+```{r}
+fviz_pca_var(res.pca_A12, axes = c(1,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = FALSE)
+```
+
+
+### c) caracterisation en dim (2,3)
+
+```{r}
+res.pca_A13 = PCA(acp_serie_A2_admissible, quali.sup = 1, ncp = 8, axes = c(2,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_A13, axes = c(2,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+
+## 2) Caracterisation des admis parmi les candidats admissibles
+
+les variables utilisées sont les notes des candidats de 2NDE, 1ERE, TLE et au BAC ainsi que les notes au test ecrit des candidats admissibles. La variable qualitative Admis a été mise en supplémentaire.
+
+```{r}
+acp_serie_A2_admis = acp_serie_A2
+
+#selection des candidats de la serie admissible
+acp_serie_A2_admis = acp_serie_A2_admis[acp_serie_A2_admis$admissible=="1",]
+
+#suppression de la variable admissible
+acp_serie_A2_admis = acp_serie_A2_admis%>%select(-admissible)
+
+```
+
+### a) caracterisation en dim (1,2)
+
+```{r}
+res.pca_ad_A1 = PCA(acp_serie_A2_admis, quali.sup = 1, ncp = 8)
+```
+
+```{r}
+library(factoextra)
+fviz_eig(res.pca_ad_A1, addlabels = TRUE)
+```
+
+```{r}
+fviz_pca_var(res.pca_ad_A1, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+
+### b) caracterisation en dim (1,3)
+
+```{r}
+res.pca_ad_A12 = PCA(acp_serie_A2_admis, quali.sup = 1, ncp = 8, axes = c(1,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_ad_A12, axes = c(1,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = FALSE)
+```
+
+
+### c) caracterisation en dim (2,3)
+
+```{r}
+res.pca_ad_A13 = PCA(acp_serie_A2_admis, quali.sup = 1, ncp = 8, axes = c(2,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_ad_A13, axes = c(2,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+
+# II - ACP Serie G2
+
+```{r}
+acp_serie_G2 = acp_serie_G2%>%select(-identifiantCandidat, -genre, -Nationalite, -serie, -mentionAuBac, -redoublementTerminale, -rangEnTerminale, -etablissementOrigine, -FiliereAccueil, -Cycle, -EcoleAccueil,  -DREN, -age, -annee)
+```
+
+```{r}
+# typage des variables
+acp_serie_G2$admissible = as.factor(acp_serie_G2$admissible)
+acp_serie_G2$admis = as.factor(acp_serie_G2$admis)
+acp_serie_G2$BAC_ANGLAIS = as.numeric(acp_serie_G2$BAC_ANGLAIS)
+acp_serie_G2$BAC_FRANCAIS = as.numeric(acp_serie_G2$BAC_FRANCAIS)
+acp_serie_G2$BAC_MATHEMATIQUES = as.numeric(acp_serie_G2$BAC_MATHEMATIQUES)
+acp_serie_G2$`BAC_ETUDE DE CAS` = as.numeric(acp_serie_G2$`BAC_ETUDE DE CAS`)
+acp_serie_G2$`1ERE_ANGLAIS` = as.numeric(acp_serie_G2$`1ERE_ANGLAIS`)
+acp_serie_G2$`1ERE_FRANCAIS` = as.numeric(acp_serie_G2$`1ERE_FRANCAIS`)
+acp_serie_G2$`1ERE_MATHEMATIQUES` = as.numeric(acp_serie_G2$`1ERE_MATHEMATIQUES`)
+acp_serie_G2$`2NDE_ANGLAIS` = as.numeric(acp_serie_G2$`2NDE_ANGLAIS`)
+acp_serie_G2$`2NDE_FRANCAIS` = as.numeric(acp_serie_G2$`2NDE_FRANCAIS`)
+acp_serie_G2$`2NDE_MATHEMATIQUES` = as.numeric(acp_serie_G2$`2NDE_MATHEMATIQUES`)
+acp_serie_G2$`TLE_ANGLAIS` = as.numeric(acp_serie_G2$`TLE_ANGLAIS`)
+acp_serie_G2$`TLE_FRANCAIS` = as.numeric(acp_serie_G2$`TLE_FRANCAIS`)
+acp_serie_G2$`TLE_MATHEMATIQUES` = as.numeric(acp_serie_G2$`TLE_MATHEMATIQUES`)
+```
+
+
+## 1) Caracterisation des admissibles parmi les candidats valides
+
+les variables utilisées sont les notes des candidats de 2NDE, 1ERE, TLE et au BAC. La variable qualitative Admissible a été mise en supplémentaire.
+
+```{r}
+acp_serie_G2_admissible = acp_serie_G2
+
+acp_serie_G2_admissible = acp_serie_G2_admissible%>%select(-admis, -ANGLAIS, -`CULTURE GENERALE`, -`CULTURE SCIENTIFIQUE`)
+
+#verification de valeur manquantes
+sum(is.na(acp_serie_G2_admissible))
+```
+
+### a) caracterisation en dim (1,2)
+
+```{r}
+res.pca_G2 = PCA(acp_serie_G2_admissible, quali.sup = 1, ncp = 8)
+```
+
+```{r}
+library(factoextra)
+
+fviz_eig(res.pca_G2, addlabels = TRUE)
+```
+
+```{r}
+fviz_pca_var(res.pca_G2, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+
+### b) caracterisation en dim (1,3)
+
+```{r}
+res.pca_G22 = PCA(acp_serie_G2_admissible, quali.sup = 1, ncp = 8, axes = c(1,3))
+```
+
+
+```{r}
+fviz_pca_var(res.pca_G22, axes = c(1,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = FALSE)
+```
+
+
+### c) caracterisation en dim (2,3)
+
+```{r}
+res.pca_G23 = PCA(acp_serie_G2_admissible, quali.sup = 1, ncp = 8, axes = c(2,3), graph = T)
+```
+
+```{r}
+fviz_pca_var(res.pca_G23, axes = c(2,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+
+## 2) Caracterisation des admis parmi les candidats admissibles
+
+les variables utilisées sont les notes des candidats de 2NDE, 1ERE, TLE et au BAC ainsi que les notes au test ecrit des candidats admissibles. La variable qualitative Admis a été mise en supplémentaire.
+
+```{r}
+acp_serie_G2_admis = acp_serie_G2
+
+#selection des candidats de la serie admissible
+acp_serie_G2_admis = acp_serie_G2_admis[acp_serie_G2_admis$admissible=="1",]
+
+#suppression de la variable admissible
+acp_serie_G2_admis = acp_serie_G2_admis%>%select(-admissible)
+```
+
+### a) caracterisation en dim (1,2)
+
+```{r}
+res.pca_ad_G2 = PCA(acp_serie_G2_admis, quali.sup = 1, ncp = 8, graph = T)
+```
+
+```{r}
+library(factoextra)
+fviz_eig(res.pca_ad_G2, addlabels = TRUE)
+```
+
+```{r}
+fviz_pca_var(res.pca_ad_G2, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+
+### b) caracterisation en dim (1,3)
+
+```{r}
+res.pca_ad_G22 = PCA(acp_serie_G2_admis, quali.sup = 1, ncp = 8, axes = c(1,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_ad_G22, axes = c(1,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = FALSE)
+```
+
+
+### c) caracterisation en dim (2,3)
+
+```{r}
+res.pca_ad_G23 = PCA(acp_serie_G2_admis, quali.sup = 1, ncp = 8, axes = c(2,3))
+```
+
+```{r}
+fviz_pca_var(res.pca_ad_G23, axes = c(2,3), col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```

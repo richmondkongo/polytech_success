@@ -1,0 +1,640 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(knitr)
+```
+
+
+# CREATION DU PREMIER DATAFRAME (df_candidat)
+
+## chargement des fichiers excel
+
+```{r}
+df_dren = read_excel("../dren.xlsx", col_types = c("text", "text", "text"))
+df_candidat_valide = read_excel("../BASE-CONCOURS-BACHELIER-2017.xlsx", sheet = "CANDIDATS-VALIDES", col_types = c("numeric", "date", "text", "text", "text", "text", "text", "text", "text"))
+df_candidat_admissible = read_excel("../BASE-CONCOURS-BACHELIER-2017.xlsx", sheet = "LISTE-CANDIDAT-ADMISSIBLES", col_types = c("numeric", "date", "text", "text", "text", "text", "text"))
+df_candidat_admis = read_excel("../BASE-CONCOURS-BACHELIER-2017.xlsx", sheet = "LISTE-CANDIDAT-ADMIS", col_types = c("numeric", "date", "text", "text", "text", "text", "text", "text", "text", "text"))
+
+
+df_candidat_valide_2018 = read_excel("../BASE-CONCOURS-BACHELIER-2018.xlsx", sheet = "CANDIDATS-VALIDES", col_types = c("numeric", "date", "text", "text", "text", "text", "text", "text", "text"))
+df_candidat_admissible_2018 = read_excel("../BASE-CONCOURS-BACHELIER-2018.xlsx", sheet = "LISTE-CANDIDAT-ADMISSIBLES", col_types = c("numeric", "date", "text", "text", "text", "text", "text"))
+df_candidat_admis_2018 = read_excel("../BASE-CONCOURS-BACHELIER-2018.xlsx", sheet = "LISTE-CANDIDAT-ADMIS", col_types = c("numeric", "date", "text", "text", "text", "text", "text", "text", "text", "text"))
+
+
+df_choix_candidat_valide = read_excel("../BASE-CONCOURS-BACHELIER-2017.xlsx", sheet = "CHOIX-CANDIDATS")
+df_choix_candidat_valide_2018 = read_excel("../BASE-CONCOURS-BACHELIER-2018.xlsx", sheet = "TOUS-LES-CHOIX")
+
+
+df_note_t = read_excel("../BASE-CONCOURS-BACHELIER-2017.xlsx", sheet = "NOTES-TEST-CANDIDATS")
+df_note_t_2018 = read_excel("../BASE-CONCOURS-BACHELIER-2018.xlsx", sheet = "NOTES-TEST-CANDIDATS")
+
+df_candidat_valide_2018%>%filter(identifiantCandidat == as.vector(df_candidat_valide_2018$identifiantCandidat))
+
+datejours = ymd("2017-12-31")
+datejours_2018 = ymd("2018-12-31")
+
+age = floor(time_length(interval(df_candidat_valide$dateNaissance,datejours),"years"))
+age_2018 = floor(time_length(interval(df_candidat_valide_2018$dateNaissance,datejours_2018),"years"))
+
+df_candidat_valide = df_candidat_valide%>%mutate(age=age)
+df_candidat_valide_2018 = df_candidat_valide_2018%>%mutate(age=age_2018)
+
+
+df_candidat_valide = df_candidat_valide%>%mutate(annee=2017)
+df_candidat_valide_2018 = df_candidat_valide_2018%>%mutate(annee=2018)
+
+df_candidat_valide = rbind(df_candidat_valide, df_candidat_valide_2018)
+df_candidat_admissible = rbind(df_candidat_admissible, df_candidat_admissible_2018)
+df_candidat_admis = rbind(df_candidat_admis, df_candidat_admis_2018)
+
+df_note_val = read_excel("../BASE-CONCOURS-BACHELIER-2017.xlsx", sheet = "NOTES-CANDIDATS-VALIDES")
+df_note_val_2018 = read_excel("../BASE-CONCOURS-BACHELIER-2018.xlsx", sheet = "NOTES-CANDIDATS-VALIDES")
+
+
+dim(df_candidat_valide)
+head(df_candidat_valide)
+
+
+df_choix_candidat_valide[which(df_choix_candidat_valide$cycles == "Cycle court (DTS)") ,"cycles"] = "court"
+df_choix_candidat_valide[which(df_choix_candidat_valide$cycles == "Classes prEparatoires aux grandes Ecoles (CPGE),CYCLE LONG") ,"cycles"] = "long"
+df_choix_candidat_valide[which(df_choix_candidat_valide$cycles == "Classes prEparatoires aux grandes Ecoles (CPGE)") ,"cycles"] = "long"
+
+df_choix_candidat_valide_2018[which(df_choix_candidat_valide_2018$cycles == "Cycle court (DTS)") ,"cycles"] = "court"
+df_choix_candidat_valide_2018[which(df_choix_candidat_valide_2018$cycles == "Classes prEparatoires aux grandes Ecoles (CPGE),CYCLE LONG") ,"cycles"] = "long"
+df_choix_candidat_valide_2018[which(df_choix_candidat_valide_2018$cycles == "Classes prEparatoires aux grandes Ecoles (CPGE)") ,"cycles"] = "long"
+
+	
+df_candidat_admis[which(df_candidat_admis$Cycle == toupper("Cycle court (DTS)")) ,"Cycle"] = "court"
+df_candidat_admis[which(df_candidat_admis$Cycle == toupper("Classes prEparatoires aux grandes Ecoles (CPGE),CYCLE LONG")) ,"Cycle"] = "long"
+df_candidat_admis[which(df_candidat_admis$Cycle == toupper("Classes prEparatoires aux grandes Ecoles (CPGE)")) ,"Cycle"] = "long"
+
+#df_choix_candidat_valide[which(df_choix_candidat_valide$cycles == "Cycle court (DTS)") ,"Cycle"] = "court"
+#df_choix_candidat_valide[which(df_choix_candidat_valide$cycles == "Classes prEparatoires aux grandes Ecoles (CPGE),CYCLE LONG") ,"Cycle"] = "long"
+#df_choix_candidat_valide[which(df_choix_candidat_valide$cycles == "Classes prEparatoires aux grandes Ecoles (CPGE)") ,"Cycle"] = "long"
+
+#View(df_candidat_valide)
+#View(df_candidat_admis)
+#View(df_choix_candidat_valide_2018)
+
+```
+## merging des drens et de notre dataframe de base(df_candidat_valide)
+
+```{r echo=FALSE}
+df_dren$ETABLISSEMENTS = toupper(df_dren$ETABLISSEMENTS)
+df_candidat_valide$etablissementOrigine = toupper(df_candidat_valide$etablissementOrigine)
+tmp = merge(df_candidat_valide, df_dren%>%select("ETABLISSEMENTS", "DREN"), by.x=c("etablissementOrigine"), by.y=c("ETABLISSEMENTS"), all.x = TRUE, all.y = FALSE)
+#View(tmp[!duplicated(tmp$identifiantCandidat), ])
+df_candidat = tmp[!duplicated(tmp$identifiantCandidat), ]
+
+df_candidat$DREN[df_candidat$etablissementOrigine == "AUTRE"] = "AUTRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("LYCEE PROFESSIONNEL", ignore_case = T))] = "AUTRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("yopougon", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("GUCHANROLAIN", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("clement", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("WILLIAM PONTY", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("AKANJI", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("mavro", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("LES SAINTS ANGES", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("LAGRANGE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("SONGON", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("abobo", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("GROUPE SCOLAIRE FUSOS COURS SOCIAUX", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("aboisso", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("TIAPOUM", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("AYAME", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KOFFIKRO", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("marcory", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("COURS LAMARTINE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("INSTITUT DES TECHNOLOGIE D'ABIDJAN", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("koumassi", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("treichville", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("PORT-BOUET", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("Gonzagueville", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COCODY", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("MERIMEE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex(" GROUPE FRED ET POPPEE (GFP)-NATIONAL", ignore_case = T)) ] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("adjame", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ETABLISSEMENT D'APPLICATION JEAN PIAGET/ENS", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("bingerville", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ECOLE INTERNATIONALE JULES VERNE", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("plateau", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("plateau dokui", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("DJAGO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("plateau dokoui", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("plateau-dokoui", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("Tahira", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("NAHACLAN", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("anyama", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GRAND-BASSAM", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("GRAND BASSAM", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("RAGGI", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BONOUA", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("adiake", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("korhogo", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("Sinematiali", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ESICOM", ignore_case = T))] = "KORHOGO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("attecoube", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("AUGUSTIN", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("AIME CESAIRE", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SAN-PEDRO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("SAN PEDRO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("INAGOHI", ignore_case = T))] = "SAN-PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("C.B.C.G. BOUAKE", ignore_case = T))] = "BOUAKE 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex(" DALOA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ZOUKOUGBEU", ignore_case = T))  | str_detect(df_candidat$etablissementOrigine, regex("VAVOUA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("SAIOUA", ignore_case = T))] = "DALOA"  
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("VRIDI", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("CENTRE DE FORMATION PROFESSIONNELLE LA SALLE", ignore_case = T))] = "DALOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("CENTRE DE PERFECTIONNEMENT AUX METIERS DE LA MECANIQUE ET DE L'ELECTRICITE", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("yamoussoukro", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("DJEDRI", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("CENTRE POLYTECHNIQUE DU CENTRE", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("CENTRE HORLOGER D'ABIDJAN", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("HOULDA", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("LAKOTA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("GUITRY", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("DJIBOUA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("zikisso", ignore_case = T))] = "DIVO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DABAKALA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("TAFIRE", ignore_case = T))] = "KATIOLA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("KATIOLA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("TAFIRE", ignore_case = T))] = "KATIOLA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("divo", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("COLLEGE PRIVE CATHOLIQUE SAINT PIERRE ET SAINT PAUL", ignore_case = T))] = "DIVO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DALOA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("COLLEGE MODERNE DES ETOILES DU FUTURS", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ISSIA", ignore_case = T))  | str_detect(df_candidat$etablissementOrigine, regex("COLLEGE VICTOIRE DE LA GRACE DIVINE OUME", ignore_case = T)) ] = "DALOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("grand lahou", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("grand-lahou", ignore_case = T))] = "GRAND-LAHOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("soubre", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("MEAGUI", ignore_case = T)) ] = "SOUBRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AGNIBILEKROU", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("BONZOU", ignore_case = T))] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("TOUMODI", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("LACS", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("DJEKANOU", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("FERKESSEDOUGOU", ignore_case = T))] = "FERKESSEDOUGOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("Adzope", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("AKOUPE", ignore_case = T))] = "ADZOPE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DIETY", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("BIANKOUMA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("DANANE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ZOUAN-HOUNIEN", ignore_case = T))] = "MAN" 
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ODIENNE", ignore_case = T))] = "ODIENNE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DIMBOKRO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ARRAH", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ABONGOUA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("BOCANDA", ignore_case = T))] = "DIMBOKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("MAN", ignore_case = T))] = "MAN"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SIKENSI", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("TAABO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("AGBOVILLE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("N'DOUCI", ignore_case = T))] = "AGBOVILLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SINFRA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("GOHITAFLA", ignore_case = T))] = "BOUAFLE"  
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE LE FIGUIER", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("PEROUSE", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE L'EMERGENCE BOUAKE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ECOLE PRATIQUE DE COMMERCE ET TECHNOLOGIE BOUAKE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ECOLE SUPERIEUR DE COMMERCE (ESC) BOUAKE", ignore_case = T))] = "BOUAKE 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("RIVIERA", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("TIEBISSOU", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ATTIEGOUAKRO", ignore_case = T))] = "YAMOUSSOUKRO" 
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ALEPE", ignore_case = T))] = "ADZOPE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DABOU", ignore_case = T))] = "DABOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AGBOVILLE", ignore_case = T))] = "AGBOVILLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DAOUKRO", ignore_case = T))] = "DAOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("LYCEE TECHNIQUE BOUAKE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("LYCEE TECHNIQUE DE BOUAKE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("IMES", ignore_case = T))] = "BOUAKE 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DUEKOUE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KOUIBLY", ignore_case = T))] = "DUEKOUE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("JACQUEVILLE", ignore_case = T))] = "DABOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ODIENE", ignore_case = T))] = "ODIENNE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("NIABLE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("BETTIE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("TANGUELAN", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("COLLEGE DEPARTEMENTAL", ignore_case = T)) ] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BONDOUKOU", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KOUN-FAO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KOUN FAO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KOUNFAO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("TANDA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ASSUEFFRY", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ASSUEFRY", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ASSUEFFRY", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("goumere", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("DATEKRO", ignore_case = T)) |  str_detect(df_candidat$etablissementOrigine, regex("TABAGNE", ignore_case = T))] = "BONDOUKOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BOUAFLE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KONONFLA", ignore_case = T))] = "BOUAFLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("LYCEE MODERNE TSF BOUAKE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("COLLEGE PRIVE TUSSUAMY BOUAKE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ECOLE SUPERIEUR DE COMMERCE (ESC) BOUAKE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ECOLE SUPERIEUR DE COMMERCE BOUAKE", ignore_case = T))] = "BOUAKE 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SASSANDRA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("FRESCO", ignore_case = T))] = "SASSANDRA" 
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("LYCEE MODERNE NIMBO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("SAKASSOU", ignore_case = T)) ] = "BOUAKE 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SEGUELA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KANI", ignore_case = T))] = "SEGUELA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("LYCEE CLASSIQUE ET MODERNE 1 BOUAKE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("YAMOUSSO MARIE THERESE BOUAKE", ignore_case = T))] = "BOUAKE 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("INSTITUT DE FORMATION SAINTE MARIE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("ABROGOUA", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("C.E.G.S A-S POUCHKINE AGOU", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("PROVINCIAL", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE ALE AHIN YAKASSE ATTOBROU", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("COLLEGE ALE AHIN YAKASSE-ATTOBROU", ignore_case = T))] = "ADZOPE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("M'BAHIAKRO", ignore_case = T))] = "DAOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("M'BAHIAKRO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("PRIKRO", ignore_case = T))] = "DAOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BOUNDIALI", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("LYCEE MODERNE ZIGUITIE KOUTO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("GBON", ignore_case = T))] = "BOUNDIALI"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE GRACE MARIE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("GAGNOA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KAMOUROU", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("DIEGONEFLA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("DIOGONEFLA", ignore_case = T))] = "GAGNOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GAGNOA", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("GUEYO", ignore_case = T))] = "GAGNOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ABENGOUROU", ignore_case = T))] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SOUBRE", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("YABAYO", ignore_case = T)) | str_detect(df_candidat$etablissementOrigine, regex("KFW", ignore_case = T))] = "SOUBRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE NOTRE DAME D'AFRIQUE", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DIANRA", ignore_case = T))] = "MANKONO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("NIELLE", ignore_case = T))] = "FERKESSEDOUGOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("TOUBA", ignore_case = T))] = "TOUBA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BOCANDA", ignore_case = T))] = "DIMBOKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GROUPE SCOLAIRE DES ART DES METIERS", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AKANJI", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("NIABLE", ignore_case = T))] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("CELIA", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE PRIVE OBAMA  DE BOUAKE", ignore_case = T))] = "BOUAKE 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SAIOUA", ignore_case = T))] = "DALOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE DEPARTEMENTAL", ignore_case = T))] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("INSTITUT DE FORMATION TECHNIQUE ET PROFESSIONNEL BOUAKE", ignore_case = T))] = "BOUAKE 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GROUPE SCOLAIRE LONNY-ROSE", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE PRIVE EZECHIAS", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE LOUIS HENRI GAH", ignore_case = T))] = "MAN"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE PENITHOLONY", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("NANAN EBA DE ABONGOUA", ignore_case = T))] = "BONGOUANOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ADIAKE", ignore_case = T))] = "ADIAKE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("LYCEE MODERNE ZIGUITIE KOUTO", ignore_case = T))] = "BOUNDIALI"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("LYCEE MODERNE LUCIEN YEBARTH II", ignore_case = T))] = "SAN PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ENIC", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("INSTITUT FR FORMATION PROFESSIONNELLE ENIC", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("IST LA COLOMBE", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("INSTITUT INTERNATIONAL DES SPECIALISTES", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("	2IS", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("INSTITUT INTERNATIONAL DES SPECIALISTES (2IS)", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("INSTITUT SAINT SYLVER", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SARHAOUM", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("TIENINGBOUE", ignore_case = T))] = "MANKONO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("FERKESSEDOUGOU", ignore_case = T))] = "FERKESSEDOUGOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("NANAN KOUAKOU", ignore_case = T))] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("MICRO MEDIA FORMATION", ignore_case = T))] = "DALOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("TIAPOUM", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DIEGONEFLA", ignore_case = T))] = "GAGNOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DONWAHI", ignore_case = T))] = "SOUBRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("TAABO", ignore_case = T))] = "AGBOVILLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("TOUBA", ignore_case = T))] = "TOUBA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AYAME", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DIDIEVI", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DIMBOKRO", ignore_case = T))] = "DIMBOKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GAGNOA", ignore_case = T))] = "GAGNOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GONZAGUEVILLE", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GONZAGVILLE", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SEGUELA", ignore_case = T))] = "SEGUELA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DJEKANOU", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ISSIA", ignore_case = T))] = "DALOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("CENTRE DE PERFECTIONNEMENT AUX METIERS DE LA MECANIQUE ET DE L'ELECTRICITE", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("INSTITUT DE FORMATION PROFESSIONNELLE AZING IVOIRE", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("MOHAMED V", ignore_case = T))] = "BOUAKE 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("MOHAMED 5", ignore_case = T))] = "BOUAKE 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("VIGNON", ignore_case = T))] = "DUEKOUE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("MAFERE", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("RUBINO", ignore_case = T))] = "AGBOVILLE"
+#df_candidat$DREN[df_candidat$etablissementOrigine == "AUTRE"] = "AUTRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("yop", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("yamoussoukro", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("centre polytechnique du centre", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("aboisso", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("abobo", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("yopougon", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("cocody", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("plateau", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("plateau-dokui", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("bingerville", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("adjame", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("daoukro", ignore_case = T))] = "DAOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("plateau dokui", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("anyama", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("marcory", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("treichville", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("attecoube", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("korhogo", ignore_case = T))] = "KORHOGO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("koumassi", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("san-pedro", ignore_case = T))] = "SAN PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("san pedro", ignore_case = T))] = "SAN PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("lakota", ignore_case = T))] = "DIVO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("divo", ignore_case = T))] = "DIVO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("daloa", ignore_case = T))] = "DALOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("vridi", ignore_case = T))] = "ABIDJAN 2"
+#df_candidat$DREN[df_candidat$Nationalite != "IVOIRIENNE"] = "AUTRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("soubre", ignore_case = T))] = "SOUBRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("agboville", ignore_case = T))] = "AGBOVILLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("djedri", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("toumodi", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("jacqueville", ignore_case = T))] = "DABOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("odienne", ignore_case = T))] = "ODIENNE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("port-bouet", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("port bouet", ignore_case = T))] = "ABIDJAN 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SAN-PEBRO", ignore_case = T))] = "SAN PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SAN PEBRO", ignore_case = T))] = "SAN PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("FIGUIER", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("riviera", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("dabou", ignore_case = T))] = "DABOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("bouafle", ignore_case = T))] = "BOUAFLE"
+df_candidat$DREN[df_candidat$etablissementOrigine == "ECOLE INTERNATIONALE JULES VERNE"] = "ABIDJAN 1"
+df_candidat$DREN[df_candidat$etablissementOrigine == "LYCEE CLASSIQUE ET MODERNE 1 BOUAKE"] = "BOUAKE 2"
+df_candidat$DREN[df_candidat$etablissementOrigine == "COLLEGE MARTIN LUTHER KING BOUAKE"] = "BOUAKE 1"
+df_candidat$DREN[df_candidat$etablissementOrigine == "LYCEE TECHNIQUE DE BOUAKE"] = "BOUAKE 2"
+df_candidat$DREN[df_candidat$etablissementOrigine == "LYCEE TECHNIQUE BOUAKE"] = "BOUAKE 2"
+df_candidat$DREN[df_candidat$etablissementOrigine == "LYCEE MODERNE INAGOHI"] = "SAN PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BONDOUKOU", ignore_case = T))] = "BONDOUKOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("PONTY", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("KONONFLA", ignore_case = T))] = "BOUAFLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GRAND BASSAM", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GRAND-BASSAM", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("MAN", ignore_case = T))] = "MAN"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ALEPE", ignore_case = T))] = "ADZOPE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ARRA", ignore_case = T))] = "BONGOUANOU"
+df_candidat$DREN[df_candidat$etablissementOrigine == "ETABLISSEMENT D'APPLICATION JEAN PIAGET/ENS"] = "ABIDJAN 1"
+df_candidat$DREN[df_candidat$etablissementOrigine == "GROUPE SCOLAIRE FUSOS COURS SOCIAUX"] = "ABIDJAN 4"
+df_candidat$DREN[df_candidat$etablissementOrigine == "GROUPE SCOLAIRE LES SAINTS ANGES"] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex(" GRAND-LAHOU", ignore_case = T))] = "DABOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex(" GRAND LAHOU", ignore_case = T))] = "DABOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SASSANDRA", ignore_case = T))] = "SASSANDRA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("NIMBO", ignore_case = T))] = "BOUAKE 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SONGON", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BONON", ignore_case = T))] = "BOUAFLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BONZOU", ignore_case = T))] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("INSTITUT DE FORMATION SAINTE MARI", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AGNIBILEKROU", ignore_case = T))] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("(ESC)", ignore_case = T))] = ""
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DJIBOUA", ignore_case = T))] = "DIVO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SORBONE", ignore_case = T))] = "DIVO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("N'DOUCI", ignore_case = T))] = "AGBOVILLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("IMES", ignore_case = T))] = "BOUAKE 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("DIETY", ignore_case = T))] = "DALOA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE KONET MOUSSA KANI", ignore_case = T))] = "SEGUELA"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("SIKENSI", ignore_case = T))] = "AGBOVILLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("PEROUSE", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BANGOLO", ignore_case = T))] = "DUEKOUE "
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AKOUPE", ignore_case = T))] = "ABIDJAN 4"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("MEAGUI", ignore_case = T))] = "SOUBRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AZAGUIE", ignore_case = T))] = "AGBOVILLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ABENGOUROU", ignore_case = T))] = "ABENGOUROU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GOHITAFLA", ignore_case = T))] = "BOUAFLE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("KOUN-FAO", ignore_case = T))] = "BONDOUKOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("KOUN FAO", ignore_case = T))] = "BONDOUKOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("KOSSOU", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GUEYO", ignore_case = T))] = "SOUBRE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GONGREVILLE", ignore_case = T))] = "BOUAKE 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GONFREVILLE", ignore_case = T))] = "BOUAKE 2"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ASSUEFRY", ignore_case = T))] = "BONDOUKOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GRAND BEREBY", ignore_case = T))] = "SAN PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GRAND-BEREBY", ignore_case = T))] = "SAN PEDRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex(" TIEMELEKRO", ignore_case = T))] = "BONGOUANOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("TIEBISSOU", ignore_case = T))] = "YAMOUSSOUKRO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("M'BATTO", ignore_case = T))] = "BONGOUANOU"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("GUCHANROLAIN", ignore_case = T))] = "ABIDJAN 3"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AFFERY", ignore_case = T))] = "ADZOPE"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ESICOM", ignore_case = T))] = "KORHOGO"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("COLLEGE SAINT JACQUES BOUAKE", ignore_case = T))] = "BOUAKE 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("AL-ISTEA", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("ALT-ISTEA", ignore_case = T))] = "ABIDJAN 1"
+df_candidat$DREN[str_detect(df_candidat$etablissementOrigine, regex("BONOUA", ignore_case = T))] = "ABOISSO"
+df_candidat$DREN[df_candidat$etablissementOrigine == "COLLEGE YADA CLEMENT"] = "ABIDJAN 3"
+df_candidat$DREN[df_candidat$etablissementOrigine == "ECOLE PRATIQUE DE COMMERCE ET TECHNOLOGIE BOUAKE"] = "BOUAKE 2"
+df_candidat$DREN[df_candidat$etablissementOrigine == "EPCT"] = "BOUAKE 2"
+df_candidat$DREN[df_candidat$etablissementOrigine == "ECOLE SUPERIEUR DE COMMERCE (ESC) BOUAKE"] = "BOUAKE 1"
+
+
+# permet de voir les collèges et lycée qui n'ont pas encore de dren
+sel = is.na(df_candidat$DREN)
+(sum(is.na(df_candidat$DREN)))
+#View(df_candidat[sel, ])
+#View(df_candidat)
+```
+
+## Ajout des colonnes admissible et admis
+```{r}
+tmp = df_candidat_admissible%>%mutate(admissible=1)%>%select(identifiantCandidat, admissible)
+tmp = merge(df_candidat, tmp, by = c("identifiantCandidat"), all = TRUE)
+tmp[is.na(tmp$admissible) ,"admissible"] = 0
+
+tmp2 = df_candidat_admis%>%select("identifiantCandidat", "FiliereAccueil", "Cycle", "EcoleAccueil")%>%mutate(admis=1)
+tmp2 = merge(tmp, tmp2, by = c("identifiantCandidat"), all.x = TRUE)
+tmp2[is.na(tmp2$admis),"admis"] = 0
+tmp2[is.na(tmp2$EcoleAccueil), "EcoleAccueil"] = "echec"
+tmp2[is.na(tmp2$FiliereAccueil), "FiliereAccueil"] = "echec"
+tmp2[is.na(tmp2$Cycle), "Cycle"] = "echec"
+
+df_candidat = tmp2
+rm(tmp, tmp2)
+#View(df_candidat)
+head(df_candidat)
+
+
+# regroupement des series
+df_candidat$serie[df_candidat$serie == "BT CHANTIER GROS OEUVRE" | df_candidat$serie =="BT TOPOGRAPHIE" ] ="BT GC"
+df_candidat$serie[df_candidat$serie == "BT CONTROLE QUALITE" | df_candidat$serie =="BT INDUSTRIE AGRO ALIMENTAIRE"] ="BT STGP"
+df_candidat$serie[df_candidat$serie == "BT COMPTABILITE" | df_candidat$serie =="BT COMPTABILITE ET COMMERCE" | df_candidat$serie == "BT FINANCES COMPTABILITE" | df_candidat$serie == "BT ELECTRICITE BÂTIMENT"] ="BT COMPTA"
+df_candidat$serie[df_candidat$serie == "BT ELECTRONIQUE" | df_candidat$serie == "BT MAINTENANCE ELECTRONIQUE" | df_candidat$serie == "BT MAINTENANCE DES SYSTEMES DE PRODUCTION"] ="BT STIC"
+df_candidat$serie[df_candidat$serie =="BT GESTION DE PRODUCTION" | df_candidat$serie =="BT MAINTENANCE ELECTROMECANIQUE" | df_candidat$serie == "BT MAINTENANCE ELECTROTECHNIQUE" | df_candidat$serie == "BT MAINTENANCE MECANIQUE"| df_candidat$serie == "BT MAINTENANCE VEHICULES ET ENGINS" | df_candidat$serie == "BT MECANIQUE AUTOMOBILE" | df_candidat$serie == "BT MECANIQUE GENERALE" | df_candidat$serie == "BT MECANO SOUDURE" | df_candidat$serie == "BT MACHINE OUTIL" | df_candidat$serie == "BT OUVRAGE METALLIQUE" | df_candidat$serie == "BT MAINTENANCE CHAUDRONNERIE-SOUDURE" | df_candidat$serie == "BT ELECTRICITE D'EQUIPEMENT" | df_candidat$serie == "BT MAINTENANCE EQUIPEMENTS ELECTRIQUE ET ELECTRONIQUE"] ="BT STGI"
+df_candidat$serie[df_candidat$serie == "S"] ="C"
+#df_candidat$serie[df_candidat$serie == "ES"] ="D"
+
+# TRAITEMENT DES RANGS
+df_candidat$rangEnTerminale = str_replace(df_candidat$rangEnTerminale, "EME", "")
+df_candidat$rangEnTerminale[df_candidat$rangEnTerminale == "1ER(E)"] = "1"
+
+df_candidat = df_candidat %>% drop_na()
+```
+
+## Modification des types 
+
+```{r}
+df_candidat$genre = as.factor(df_candidat$genre)
+df_candidat$mentionAuBac = as.factor(df_candidat$mentionAuBac)
+df_candidat$redoublementTerminale = as.factor(df_candidat$redoublementTerminale)
+df_candidat$DREN = as.factor(df_candidat$DREN)
+df_candidat$rangEnTerminale = as.factor(df_candidat$rangEnTerminale)
+df_candidat$admissible = as.factor(df_candidat$admissible)
+df_candidat$admis = as.factor(df_candidat$admis)
+df_candidat$FiliereAccueil = as.factor(df_candidat$FiliereAccueil)
+df_candidat$Cycle = as.factor(df_candidat$Cycle)
+df_candidat$EcoleAccueil = as.factor(df_candidat$EcoleAccueil)
+str(df_candidat)
+```
+## Gestion du dataframe choix candidat
+
+### traitement des choix(modification du cycle) 2017
+```{r}
+choix_candidats = df_choix_candidat_valide
+head(choix_candidats)
+
+cycles = unique(choix_candidats$cycles)
+ordrechoix = sort(unique(choix_candidats$ordrechoix))
+moy = c("moyenneDossier", "moyenneTest", "moyenneDefinitive", "cycles", "codeFiliere", "codeEcole")
+
+create_columns_names = function(colonne, choix) {
+  v = c()
+  for (c1 in colonne) {
+    for (c2 in choix) {
+      v = append(v, paste(c1, c2, sep = "_"))
+    }
+  }
+  return (v)
+}
+
+id_cdt = as.data.frame(unique(df_choix_candidat_valide$identifiantCandidat))
+colnames(id_cdt) = c("identifiantCandidat")
+head(id_cdt)
+df_choix_cdt = data.frame(matrix(rep(NA, nrow(id_cdt)*54), ncol = 54))
+colnames(df_choix_cdt) = create_columns_names(moy, ordrechoix)
+df_choix_cdt = cbind(id_cdt, df_choix_cdt)
+
+tmp = df_choix_cdt
+for (i in 1:length(id_cdt$identifiantCandidat)) {
+  mes_choix = choix_candidats%>%filter(identifiantCandidat == id_cdt$identifiantCandidat[i])
+  #print(mes_choix)
+  for (j in 1:nrow(mes_choix)) {
+    #print(mes_choix$ordrechoix[j])
+    for (col_ in moy) {
+      df_choix_cdt[i, paste(col_, mes_choix$ordrechoix[j], sep = "_")] =  mes_choix[which(mes_choix$ordrechoix == mes_choix$ordrechoix[j]), col_]
+    }
+  }
+}
+df_choix_cdt = df_choix_cdt%>%mutate(annee = 2017)
+t1= df_choix_cdt
+#View(df_choix_cdt)
+```
+### traitement des choix(modification du cycle) 2018
+```{r}
+choix_candidats = df_choix_candidat_valide_2018
+head(choix_candidats)
+
+id_cdt = as.data.frame(unique(df_candidat_valide_2018$identifiantCandidat))
+colnames(id_cdt) = c("identifiantCandidat")
+head(id_cdt)
+
+df_choix_cdt_2018 = data.frame(matrix(rep(NA, nrow(id_cdt)*54), ncol = 54))
+colnames(df_choix_cdt_2018) = create_columns_names(moy, ordrechoix)
+df_choix_cdt_2018 = cbind(id_cdt, df_choix_cdt_2018)
+
+for (i in 1:length(id_cdt$identifiantCandidat)) {
+  mes_choix = choix_candidats%>%filter(identifiantCandidat == id_cdt$identifiantCandidat[i])
+  mes_choix = mes_choix%>%mutate(ordrechoix=ordrechoix[1:nrow(mes_choix)])
+  #print(mes_choix)
+  for (j in 1:nrow(mes_choix)) {
+    #print(mes_choix$ordrechoix[j])
+    for (col_ in moy) {
+      df_choix_cdt_2018[i, paste(col_, mes_choix$ordrechoix[j], sep = "_")] =  mes_choix[which(mes_choix$ordrechoix == mes_choix$ordrechoix[j]), col_]
+    }
+  }
+}
+df_choix_cdt_2018 = df_choix_cdt_2018%>%mutate(annee = 2018)
+t2= df_choix_cdt_2018
+#View(df_choix_cdt_2018)
+df_choix_cdt = rbind(df_choix_cdt, df_choix_cdt_2018)
+
+k = 1
+for (i in colnames(df_choix_cdt)) {
+    if(k < 20) {
+      df_choix_cdt[is.na(df_choix_cdt[, i]), i] = "0"
+      df_choix_cdt[, colnames(df_choix_cdt%>%select(i))[1]] = as.double(unlist(df_choix_cdt%>%select(i)))
+    } else {
+      df_choix_cdt[is.na(df_choix_cdt[, i]), i] = "aucun"
+      df_choix_cdt[, colnames(df_choix_cdt%>%select(i))[1]] = as.factor(unlist(df_choix_cdt%>%select(i)))
+    }
+  
+  k = k + 1
+}
+```
+
+## Gestion du dataframe des notes avant l'obtention du bac(2nd, 1ere, tle, bac)
+
+### Traitement des notes de 2017
+
+```{r}
+note = df_note_val
+matiere = levels(factor(note$matiere))
+typenote = levels(factor(note$typenote))
+
+create_columns_names = function(type, matiere) {
+  v = c()
+  for (t in type) {
+    for (m in matiere) {
+      v = append(v, paste(t, m, sep = "_"))
+    }
+  }
+  return (v)
+}
+
+
+id_cdt = as.data.frame(unique(note$identifiantCandidat))
+colnames(id_cdt) = c("identifiantCandidat")
+df_note = data.frame(matrix(rep(NA, nrow(id_cdt)*60), ncol = 60))
+colnames(df_note) = create_columns_names(typenote, matiere)
+df_note = cbind(id_cdt, df_note)
+
+
+for (i in 1:length(df_note$identifiantCandidat)) {
+  mes_notes = note%>%filter(identifiantCandidat == df_note$identifiantCandidat[i])
+  for (j in 1:nrow(mes_notes)) {
+    type = mes_notes$typenote[j]
+    matiere = mes_notes$matiere[j]
+    df_note[i, paste(type, matiere, sep = "_")] =  mes_notes$note[j]
+  }
+  df_note[, paste(type, matiere, sep = "_")] = as.numeric(df_note[, paste(type, matiere, sep = "_")])
+  
+}
+#df_note = merge(df_note, df_candidat%>%select(identifiantCandidat, serie, admis), by = "identifiantCandidat", all.y = TRUE) 
+#df_note = merge(df_note, df_candidat, by = c("identifiantCandidat", "admis", "serie"), all.y = TRUE) 
+#length(unique(df$candidats_valides$identifiantCandidat))
+#length(unique(df$notes_candidats_valides$identifiantCandidat))
+#head(df_note)
+df_note = df_note%>%mutate(annee=rep(2017, nrow(df_note)))
+```
+
+### Traitement des notes de 2018
+
+```{r}
+tmp = df_note
+df_note = tmp
+note = df_note_val_2018
+matiere = levels(factor(note$matiere))
+typenote = levels(factor(note$typenote))
+
+create_columns_names = function(type, matiere) {
+  v = c()
+  for (t in type) {
+    for (m in matiere) {
+      v = append(v, paste(t, m, sep = "_"))
+    }
+  }
+  return (v)
+}
+
+
+id_cdt = as.data.frame(unique(note$identifiantCandidat))
+colnames(id_cdt) = c("identifiantCandidat")
+df_note_2018 = data.frame(matrix(rep(NA, nrow(id_cdt)*60), ncol = 60))
+colnames(df_note_2018) = create_columns_names(typenote, matiere)
+df_note_2018 = cbind(id_cdt, df_note_2018)
+
+
+for (i in 1:length(df_note_2018$identifiantCandidat)) {
+  mes_notes = note%>%filter(identifiantCandidat == df_note_2018$identifiantCandidat[i])
+  for (j in 1:nrow(mes_notes)) {
+    type = mes_notes$typenote[j]
+    matiere = mes_notes$matiere[j]
+    df_note_2018[i, paste(type, matiere, sep = "_")] =  mes_notes$note[j]
+  }
+  df_note_2018[, paste(type, matiere, sep = "_")] = as.numeric(df_note_2018[, paste(type, matiere, sep = "_")])
+  
+}
+
+df_note_2018 = df_note_2018%>%mutate(annee=rep(2018, nrow(df_note_2018)))
+
+df_note = rbind(df_note, df_note_2018)
+```
+
+## Gestion du datagrame des notes pour le test
+
+### Traitement des notes de 2017
+
+```{r}
+note = df_note_t
+matiere = unique(note$matiere)
+
+id_cdt = as.data.frame(unique(note$identifiantCandidat))
+colnames(id_cdt) = c("identifiantCandidat")
+df_note_test = data.frame(matrix(rep(NA, nrow(id_cdt)*3), ncol = 3))
+colnames(df_note_test) = matiere
+df_note_test = cbind(id_cdt, df_note_test)
+
+
+for (i in 1:length(df_note_test$identifiantCandidat)) {
+  mes_notes = note%>%filter(identifiantCandidat == df_note_test$identifiantCandidat[i])
+  for (j in 1:nrow(mes_notes)) {
+    mat = mes_notes$matiere[j]
+    df_note_test[i, mat] =  mes_notes$note[j]
+  }
+  df_note_test[, matiere] = as.numeric(df_note_test[, mat])
+  
+}
+#View(df_note_test)
+df_note_test = df_note_test%>%mutate(annee=rep(2017, nrow(df_note_test)))
+dim(df_note_test)
+```
+
+### Traitement des notes de test 2018
+
+```{r}
+tmp = df_note_test
+note = df_note_t_2018
+matiere = unique(note$matiere)
+
+id_cdt = as.data.frame(unique(note$identifiantCandidat))
+colnames(id_cdt) = c("identifiantCandidat")
+df_note_test_2018 = data.frame(matrix(rep(NA, nrow(id_cdt)*3), ncol = 3))
+colnames(df_note_test_2018) = matiere
+df_note_test_2018 = cbind(id_cdt, df_note_test_2018)
+
+
+for (i in 1:length(df_note_test_2018$identifiantCandidat)) {
+  mes_notes = note%>%filter(identifiantCandidat == df_note_test_2018$identifiantCandidat[i])
+  for (j in 1:nrow(mes_notes)) {
+    mat = mes_notes$matiere[j]
+    df_note_test_2018[i, mat] =  mes_notes$note[j]
+  }
+  df_note_test_2018[, matiere] = as.numeric(df_note_test_2018[, mat])
+  
+}
+#View(df_note_test_2018)
+df_note_test_2018 = df_note_test_2018%>%mutate(annee=rep(2018, nrow(df_note_test_2018)))
+dim(df_note_test)
+df_note_test = rbind(df_note_test, df_note_test_2018)
+head(df_note_test_2018)
+```
+
+## Enregistrement dans un fichier excel afin de ne plus avoir à refaire ce traitement
+
+```{r}
+df_candidat = df_candidat%>%drop_na()
+df_candidat = na.omit(df_candidat)
+df_note = merge(df_note, df_candidat%>%select(identifiantCandidat), by = "identifiantCandidat", all.y = TRUE, all.x = FALSE)
+df_choix_cdt = merge(df_choix_cdt, df_candidat%>%select(identifiantCandidat), by = "identifiantCandidat", all.y = TRUE, all.x = FALSE)
+#df_note_test = df_note_test%>%right_join(df_candidat%>%select(identifiantCandidat), by = "identifiantCandidat")
+#df_note_test[which(is.na(df_note_test), arr.ind = TRUE)] = 0
+
+path = "df_final.xlsx"
+if(file.exists(path)) { file.remove(path) }
+Sys.sleep(3)
+openxlsx::write.xlsx(list(candidat=df_candidat, choix=df_choix_cdt, note=df_note, test=df_note_test), path, colNames = TRUE, rowNames = FALSE, append = FALSE)
+#View(df_candidat)
+#View(df_choix_cdt)
+```

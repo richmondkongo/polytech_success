@@ -1,0 +1,1217 @@
+---
+title: "PROJET_FINAL17-18"
+author: "Yasmine Stephanie KOUADIO"
+date: "12/07/2021"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## PACKAGE NECESSAIRES
+
+```{r}
+library(readxl)
+library(dplyr)
+library(skimr)
+library(questionr)
+library(scales)
+library(tidyverse)
+library(ggplot2)
+library(gtsummary)
+library(GGally)
+library(gridExtra)
+library(FactoMineR)
+library(factoextra)
+
+
+```
+
+
+# CHARGEMENT DES DONNEES
+
+```{r}
+# creation des dataframes
+
+candidat = read_excel("df2017-2018.xlsx", sheet = "candidat",)
+choix = read_excel("df2017-2018.xlsx", sheet = "choix")
+note = read_excel("df2017-2018.xlsx", sheet = "note")
+test = read_excel("df2017-2018.xlsx", sheet = "test")
+
+# Typage des données
+
+candidat$genre = as.factor(candidat$genre)
+
+candidat$Nationalite = as.factor(candidat$Nationalite)
+candidat$serie = as.factor(candidat$serie)
+candidat$mentionAuBac = as.factor(candidat$mentionAuBac)
+candidat$redoublementTerminale = as.factor(candidat$redoublementTerminale)
+candidat$rangEnTerminale = as.factor(candidat$rangEnTerminale)
+candidat$age = as.numeric(candidat$age)
+candidat$annee = as.factor(candidat$annee)
+candidat$DREN = as.factor(candidat$DREN)
+candidat$admissible = as.factor(candidat$admissible)
+candidat$FiliereAccueil = as.factor(candidat$FiliereAccueil)
+candidat$Cycle = as.factor(candidat$Cycle)
+candidat$EcoleAccueil = as.factor(candidat$EcoleAccueil)
+candidat$admis = as.factor(candidat$admis)
+
+candidat$Nationalite = toupper(candidat$Nationalite)
+
+
+
+choix$annee = as.factor(choix$annee)
+note$annee = as.factor(choix$annee)
+test$annee = as.factor(test$annee)
+# structure des données
+#str(candidat)
+# str(choix)
+# str(note)
+# str(test)
+#sum(is.na(candidat$Nationalite))
+# Typage des données
+
+
+```
+
+Les différents dataframes utilisés dans cette étude sont issus de l'étape précédente de préparation des données.
+Il s'agit du dataframe candidat contenant les informations résumées sur le candidat, le dataframe choix contenant les choix et les moyennes du candidat, les dataframes note et test contenant respectivement les notes antérieures et les notes de composition au concours des candidats
+
+
+# ANALYSE DESCRIPTIVE UNIVARIEE
+
+## DONNEES RESUMEES SUR LE CANDIDAT
+
+### VARIABLES QUANTITATIVES
+
+
+L'unique variable quantitaive de notre dataframe est le variable age.
+
+```{r}
+all_year = summary(candidat$age)
+freq_2017 = as.data.frame(freq(candidat$age[candidat$annee == 2017]))
+freq_2018= freq( candidat$age[candidat$annee == 2018])
+freq_all = freq(candidat$age)
+annee_2017 = summary(candidat$age[candidat$annee == 2017])
+annee_2018 = summary(candidat$age[candidat$annee == 2018])
+resume = rbind(annee_2017,annee_2018,all_year)
+freq_2017 = freq_2017 %>% mutate(age =rownames(freq_2017))
+freq_2018= freq_2018 %>% mutate(age =rownames(freq_2018))
+freq_all = freq_all %>% mutate(age =rownames(freq_all))
+freq_all = freq_all %>% full_join(freq_2017,by="age") %>% full_join(freq_2018, by="age")
+colnames(freq_all) = c("total","total %", "totalval_per","age", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+age = freq_all$age
+freq_all = freq_all %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+freq_all = cbind(age, freq_all)
+knitr::kable(resume)
+knitr::kable(freq_all)
+couleur = as.factor(candidat$annee)
+bp <- ggplot(candidat, aes(x=as.factor(annee),y = age, color=couleur )) +
+  geom_boxplot() + 
+  theme(legend.position = "left") + xlab("annee")
+
+bp
+
+p1 = ggplot(candidat) + aes(x = age) + geom_bar(aes(fill=as.factor(annee)))+ylab("Effectifs")+labs(title = "EFFECTIFS DES CANDIDATS PAR AGE", fill="Annee")
+p1+scale_x_continuous(breaks = seq(11,24,by=1))
+
+
+```
+
+
+
+### VARIABLES QUALITATIVES
+
+```{r}
+# fonction de camembert
+camembert = function(dataframe, colonne, titre= "", type=2) {
+  # dataframe: la variable contenant notre dataframe
+  # colonne: le vecteur de notre colonne, exemple: dataframe$colonne
+  # type: le camembert qu'on veut, 1: camembert simple, 2: donut
+  
+  #mycols <- c("#0073C2FF", "#EFC000FF")
+  lev = unique(colonne)
+  eff = c()
+  for (i in lev) {
+    eff = append(eff, length(colonne[colonne==i]))
+  }  
+
+  cam = data.frame(legende=lev, eff=eff)
+  cam <- cam %>%
+    arrange(desc(legende)) %>%
+    mutate(lab.ypos = cumsum(eff) - 0.5*eff)
+  if (type == 1) {
+    ggplot(cam, aes(x = "", y = eff, fill = legende)) +
+      geom_bar(width = 1, stat = "identity", color = "white") +
+      coord_polar("y", start = 0)+
+      geom_text(aes(y = lab.ypos, label = paste(round(eff*100/sum(eff), 2), "%", sep="")))+
+      #scale_fill_manual(values = mycols) +
+      labs(title=titre, x ="", y = "")+
+      theme_void()
+  } else {
+    ggplot(cam, aes(x = 2, y = eff, fill = legende)) +
+      geom_bar(stat = "identity", color = "white") +
+      coord_polar(theta = "y", start = 0)+
+      geom_text(aes(y = lab.ypos, label = paste(round(eff*100/sum(eff), 2), "%", sep="")))+
+      #scale_fill_manual(values = mycols) +
+      labs(title=titre, x ="", y = "")+
+      theme_void()+
+      xlim(0.5, 2.5)
+  }
+}
+```
+
+
+```{r}
+# Analyse descriptive de la variable genre
+
+genre_all = freq(candidat$genre)
+genre_2017 = freq(candidat$genre[candidat$annee == 2017])
+genre_2018 = freq(candidat$genre[candidat$annee == 2018])
+genre_all = genre_all %>% mutate(genre =rownames(genre_all))
+genre_2017 = genre_2017 %>% mutate(genre =rownames(genre_2017))
+genre_2018 = genre_2018 %>% mutate(genre =rownames(genre_2018))
+genre_all = genre_all %>% full_join(genre_2017,by="genre") %>% full_join(genre_2018, by="genre")
+colnames(genre_all) = c("total","total %", "totalval_per","genre", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+genre = genre_all$genre
+genre_all  = genre_all %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+genre_all = cbind(genre, genre_all)
+genre_all = genre_all[order(genre_all$total, decreasing = T), ]
+knitr::kable(genre_all)
+
+ca1 =camembert(candidat[candidat$annee == 2017, ], candidat$genre[candidat$annee == 2017], "CANDIDATS PAR GENRE (2017)")
+ca2 = camembert(candidat[candidat$annee == 2018, ], candidat$genre[candidat$annee == 2018], "CANDIDATS PAR GENRE (2018)")
+
+grid.arrange(ca1,ca2,ncol=2, nrow=1)
+
+camembert(candidat, candidat$genre, "CANDIDATS PAR GENRE SUR LES 2 ANNEES")
+```
+
+
+```{r}
+# Analyse descriptive variable Nationalité
+
+nat = freq(candidat$Nationalite)
+nat_2017 = freq( candidat$Nationalite[candidat$annee == 2017])
+nat_2018 = freq( candidat$Nationalite[candidat$annee == 2018])
+nat_2017 = nat_2017 %>% mutate(Nationalite =rownames(nat_2017))
+nat_2018 = nat_2018 %>% mutate(Nationalite =rownames(nat_2018))
+nat = nat %>% mutate(Nationalite =rownames(nat))
+nat = nat%>% full_join(nat_2017, by = "Nationalite") %>% full_join(nat_2018, by = "Nationalite")
+
+colnames(nat) = c("total","total %", "totalval_per","Nationalite", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+nationalite = nat$Nationalite
+nat = nat %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+nat = cbind(nationalite, nat)
+nat = nat[order(nat$total, decreasing = T),]
+knitr::kable(nat)
+ggplot(candidat[candidat$annee == 2017,],aes(y=Nationalite, fill=Nationalite))+geom_bar()+labs(title = "CANDIDATS PAR NATIONALITE(2017)")+xlab("EFFECTIF")
+ggplot(candidat[candidat$annee == 2018,],aes(y=Nationalite, fill=Nationalite))+geom_bar()+labs(title = "CANDIDAT PAR NATIONALITE(2018)")+xlab("EFFECTIF")
+
+ggplot(candidat,aes(y=Nationalite, fill=Nationalite))+geom_bar()+labs(title = "CANDIDAT PAR NATIONALITE")+xlab("EFFECTIF")
+
+```
+
+```{r}
+# analyse descriptive des series
+serie_all = freq(candidat$serie)
+serie_2017 = freq(candidat$serie[candidat$annee == 2017])
+serie_2018 = freq(candidat$serie[candidat$annee == 2018])
+serie_all =serie_all %>% mutate(serie =rownames(serie_all))
+serie_2017 = serie_2017 %>% mutate(serie =rownames(serie_2017))
+serie_2018 = serie_2018 %>% mutate(serie =rownames(serie_2018))
+serie_all = serie_all %>% full_join(serie_2017,by="serie") %>% full_join(serie_2018, by="serie")
+colnames(serie_all) = c("total","total %", "totalval_per","serie", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+serie = serie_all$serie
+
+serie_all  = serie_all %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+serie_all = cbind(serie, serie_all)
+serie_all = serie_all[order(serie_all$total, decreasing = T),]
+knitr::kable(serie_all)
+
+ggplot(candidat,aes(y=serie,fill=as.factor(annee)))+geom_bar()+labs(title = "EFFECTIFS DES CANDIDATS PAR SERIE", fill="annee") + xlab("Effectif")
+
+```
+
+
+```{r}
+# analyse descriptive de la variable DREN
+Dren_all = freq(candidat$DREN)
+Dren_2017 = freq(candidat$DREN[candidat$annee == 2017])
+Dren_2018 = freq(candidat$DREN[candidat$annee == 2018])
+Dren_all =Dren_all %>% mutate(DREN =rownames(Dren_all))
+
+Dren_2017 = Dren_2017 %>% mutate(DREN =rownames(Dren_2017))
+Dren_2018 = Dren_2018 %>% mutate(DREN =rownames(Dren_2018))
+Dren_all = Dren_all %>% full_join(Dren_2017,by="DREN") %>% full_join(Dren_2018, by="DREN")
+colnames(Dren_all) = c("total","total %", "totalval_per","DREN", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+dren = Dren_all$DREN
+
+Dren_all  = Dren_all %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+Dren_all = cbind(dren, Dren_all)
+Dren_all = Dren_all[order(Dren_all$total, decreasing = T),]
+knitr::kable(Dren_all)
+ggplot(candidat,aes(y=DREN, fill=as.factor(annee)))+geom_bar()+labs(title = "CANDIDATS/DREN", fill="Annee")
+#ggplot(candidat[candidat$annee == 2018,],aes(y=as.factor(DREN), fill=DREN))+geom_bar()+labs(title = "CANDIDATS/DREN(2018)")
+
+```
+
+
+
+```{r}
+# analyse descriptive de la variable mention au bac
+freq_2017 = as.data.frame(freq(candidat$mentionAuBac[candidat$annee == 2017]))
+freq_2018= freq( candidat$mentionAuBac[candidat$annee == 2018])
+freq_all = freq(candidat$mentionAuBac)
+annee_2017 = summary(candidat$mentionAuBac[candidat$annee == 2017])
+annee_2018 = summary(candidat$mentionAuBac[candidat$annee == 2018])
+#resume = rbind(annee_2017,annee_2018,all_year)
+freq_2017 = freq_2017 %>% mutate(mention =rownames(freq_2017))
+freq_2018= freq_2018 %>% mutate(mention =rownames(freq_2018))
+freq_all = freq_all %>% mutate(mention =rownames(freq_all))
+freq_all = freq_all %>% full_join(freq_2017,by="mention") %>% full_join(freq_2018, by="mention")
+colnames(freq_all) = c("total","total %", "totalval_per","mention", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+mention = freq_all$mention
+freq_all = freq_all %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+freq_all = cbind(mention, freq_all)
+knitr::kable(freq_all)
+couleur = as.factor(candidat$annee)
+
+ggplot(candidat,aes(y=mentionAuBac, fill=as.factor(annee)))+geom_bar()+labs(title = "CANDIDATSPAR MENTION", fill="Annee")
+#p1+scale_x_continuous(breaks = seq(13,24,by=1)) 
+
+```
+
+
+
+```{r}
+# analyse descriptive de la variable redoublement
+red_all = freq(candidat$redoublementTerminale)
+red_2017 = freq(candidat$redoublementTerminale[candidat$annee == 2017])
+red_2018 = freq(candidat$redoublementTerminale[candidat$annee == 2018])
+red_all = red_all %>% mutate(red =rownames(red_all))
+
+red_2017 = red_2017 %>% mutate(red =rownames(red_2017))
+red_2018 = red_2018 %>% mutate(red =rownames(red_2018))
+red_all = red_all %>% full_join(red_2017,by="red") %>% full_join(red_2018, by="red")
+colnames(red_all) = c("total","total %", "totalval_per","red", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+red = red_all$red
+
+red_all  =  red_all %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+red_all = cbind(red, red_all)
+red_all = red_all[order(red_all$total, decreasing = T),]
+knitr::kable(red_all)
+ca1 = camembert(candidat[candidat$annee == 2017, ], candidat$redoublementTerminale[candidat$annee == 2017], "REDOUBLANTS / NON (2017)")
+ca2 = camembert(candidat[candidat$annee == 2018, ], candidat$redoublementTerminale[candidat$annee == 2018], "REDOUBLANTS / NON (2018)")
+grid.arrange(ca1,ca2,ncol=2, nrow=1)
+```
+
+
+```{r}
+# Analyse descriptive des etablissements
+
+eta_all = freq(candidat$etablissementOrigine)
+eta_2017 = freq(candidat$etablissementOrigine[candidat$annee == 2017])
+eta_2018 = freq(candidat$etablissementOrigine[candidat$annee == 2018])
+eta_all = eta_all %>% mutate(eta =rownames(eta_all))
+
+eta_2017 = eta_2017 %>% mutate(eta =rownames(eta_2017))
+eta_2018 = eta_2018 %>% mutate(eta =rownames(eta_2018))
+eta_all = eta_all %>% full_join(eta_2017,by="eta") %>% full_join(eta_2018, by="eta")
+colnames(eta_all) = c("total","total %", "totalval_per","eta", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+eta = eta_all$eta
+
+eta_all  =  eta_all %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+eta_all = cbind(eta, eta_all)
+eta_all = eta_all[order(eta_all$total, decreasing = T),]
+knitr::kable(eta_all)
+
+```
+le top 5 des taux de participation des différents lycées est constitué du lycée classique d'ABIDJAN avec 6.3% de l'effectif total des candidats pour les deux années, suivit du lycée scientifique de Yamoussoukrou, des lycées techniques de Cocody et Bouaké et du lycée mamie adjoua avec des effectifs aux alentours des 2% des candidats. Cela pourrait s'expliquer par le fait qu'elles soint des lycées d'excellence.
+
+
+
+```{r}
+# analyse descriptive des rangs
+
+rang_all = freq(candidat$rangEnTerminale)
+rang_2017 = freq(candidat$rangEnTerminale[candidat$annee == 2017])
+rang_2018 = freq(candidat$rangEnTerminale[candidat$annee == 2018])
+rang_all =rang_all %>% mutate(rang =rownames(rang_all))
+
+rang_2017 = rang_2017 %>% mutate(rang =rownames(rang_2017))
+rang_2018 = rang_2018 %>% mutate(rang =rownames(rang_2018))
+rang_all = rang_all %>% full_join(rang_2017,by="rang") %>% full_join(rang_2018, by="rang")
+colnames(rang_all) = c("total","total %", "totalval_per","rang", "count 2017","% 2017","totalval_per_2017","count 2018","% 2018","totalval_per_2018")
+rang = rang_all$rang
+
+rang_all  = rang_all %>% select(total, `total %`, `count 2017`, `% 2017`, `count 2018`, `% 2018`)
+rang_all = cbind(rang, rang_all)
+rang_all = rang_all[order(rang_all$total, decreasing = T),]
+knitr::kable(rang_all)
+
+```
+
+
+
+
+# ANALYSE DESCRIPTIVE BIVARIEE
+
+## CROISEMENT ENTRE LES DIFFERENTES VARIABLES
+
+Cette étape permettra de faire des croisement entre les différentes variables et remarquer celles qui sont dépendantes grace à un test de khi deux ou un test de student si la distribution est normale.
+
+
+```{r}
+# croisement genre/nationalite 
+candidat$Nationalite[candidat$Nationalite == "BURKINABE" | candidat$Nationalite == "GUINEENNE" | candidat$Nationalite == "BENINOISE" | candidat$Nationalite == "NIGERIANNE" | candidat$Nationalite == "TOGOLAISE" | candidat$Nationalite == "MALIENNE" | candidat$Nationalite == "NIGERIENNE" | candidat$Nationalite == "SENEGALAISE" | candidat$Nationalite == "GHANEENNE" ] = "SOUS-REGION"
+
+
+candidat$Nationalite[candidat$Nationalite == "CAMEROUNAISE" | candidat$Nationalite == "CONGOLAISE(RDC)" | candidat$Nationalite == "CENTRAFRICAINE" | candidat$Nationalite == "SIERALEONAISE" | candidat$Nationalite == "MAURITANIENNE" | candidat$Nationalite == "CONGOLAISE" | candidat$Nationalite == "FRANCAISE" | candidat$Nationalite == "RWUANDAISE" ] = "AUTRE"
+
+levels(as.factor(candidat$Nationalite))
+sum(is.na(candidat$Nationalite))
+cros_2017 = table(candidat$Nationalite[candidat$annee == 2017], candidat$genre[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))  
+mosaicplot(~Nationalite+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$Nationalite[candidat$annee == 2018], candidat$genre[candidat$annee == 2018])
+knitr::kable(cprop(cros_2017))  
+mosaicplot(~Nationalite+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+
+```
+
+
+```{r}
+#croisement genre/ mentionbac
+cros_2017 = table(candidat$mentionAuBac[candidat$annee == 2017], candidat$genre[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~mentionAuBac+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR MENTION(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$mentionAuBac[candidat$annee == 2018], candidat$genre[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~mentionAuBac+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR MENTION(2018)", las = 1, shade = TRUE)
+```
+
+
+```{r}
+#croisement genre/ age
+
+cros_2017 = table(candidat$age[candidat$annee == 2017], candidat$genre[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+candidat[candidat$annee == 2017,]%>%ggbivariate(outcome="genre",explanatory = c("age"))
+cros_2018 = table(candidat$age[candidat$annee == 2018], candidat$genre[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+candidat[candidat$annee == 2018,]%>%ggbivariate(outcome="genre",explanatory = c("age"))
+```
+
+
+```{r}
+# croisement genre / redoublement
+cros_2017 = table(candidat$redoublementTerminale[candidat$annee == 2017], candidat$genre[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~redoublementTerminale+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR REDOUBLANT(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$redoublementTerminale[candidat$annee == 2018], candidat$genre[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~redoublementTerminale+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR REDOUBLANT(2018)", las = 1, shade = TRUE)
+
+```
+
+
+```{r}
+# croisement genre / serie
+cros_2017 = table(candidat$serie[candidat$annee == 2017], candidat$genre[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~serie+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR SERIE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$serie[candidat$annee == 2018], candidat$genre[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~serie+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR SERIE(2017)", las = 4, shade = TRUE)
+```
+
+
+```{r}
+# Croisement genre et rang
+
+cros_2017 = table(candidat$rangEnTerminale[candidat$annee == 2017], candidat$genre[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~rangEnTerminale+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR RANG(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$rangEnTerminale[candidat$annee == 2018], candidat$genre[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~rangEnTerminale+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR RANG(2017)", las = 4, shade = TRUE)
+#test de Khi 2
+
+chisq.test(candidat$genre, candidat$rangEnTerminale)
+```
+
+
+
+```{r}
+# croisement genre et etablissement d'origine
+cros_2017 = table(candidat$etablissementOrigine[candidat$annee == 2017], candidat$genre[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~serie+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR SERIE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$etablissementOrigine[candidat$annee == 2018], candidat$genre[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#(~serie+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR SERIE(2017)", las = 4, shade = TRUE)
+chisq.test(candidat$genre, candidat$etablissementOrigine)
+```
+
+
+```{r}
+#croisement genre et dren
+cros_2017 = table(candidat$DREN[candidat$annee == 2017], candidat$genre[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~serie+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR SERIE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$DREN[candidat$annee == 2018], candidat$genre[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+chisq.test(candidat$genre, candidat$DREN)
+#mosaicplot(~serie+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR SERIE(2017)", las = 4, shade = TRUE)
+```
+
+
+
+
+
+```{r}
+#CROISEMENT SERIE ET NATIONALITE
+
+cros_2017 = table(candidat$Nationalite[candidat$annee == 2017], candidat$serie[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~serie+Nationalite, data = candidat[candidat$annee == 2017,], color = TRUE, main = "SERIE PAR NATIONNALITE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$Nationalite[candidat$annee == 2018], candidat$serie[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~serie+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "SERIE PAR NATIONNALITE(2018)", las = 4, shade = TRUE)
+
+```
+
+
+```{r}
+## CROISEMENT SERIE ET MENTION
+cros_2017 = table(candidat$mentionAuBac[candidat$annee == 2017], candidat$serie[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~serie+mentionAuBac, data = candidat[candidat$annee == 2017,], color = TRUE, main = "SERIE PAR MENTION(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$mentionAuBac[candidat$annee == 2018], candidat$serie[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~serie+mentionAuBac, data = candidat[candidat$annee == 2018,], color = TRUE, main = "SERIE PAR MENTION(2017)", las = 4, shade = TRUE)
+```
+
+
+```{r}
+# SERIE ET AGE
+cros_2017 = table(candidat$age[candidat$annee == 2017], candidat$serie[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#candidat[candidat$annee == 2017,]%>%ggbivariate(outcome="serie",explanatory = c("age"))
+
+cros_2018 = table(candidat$age[candidat$annee == 2018], candidat$serie[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#candidat[candidat$annee == 2018,]%>%ggbivariate(outcome="serie",explanatory = c("age"))
+
+```
+
+
+
+```{r}
+## CROISEMENT SERIE ET REDOUBLEMENT EN TERMINALE
+
+cros_2017 = table(candidat$redoublementTerminale[candidat$annee == 2017], candidat$serie[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~serie+redoublementTerminale, data = candidat[candidat$annee == 2017,], color = TRUE, main = "REDOUBLANT PAR SERIE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$redoublementTerminale[candidat$annee == 2018], candidat$serie[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~serie+redoublementTerminale, data = candidat[candidat$annee == 2018,], color = TRUE, main = "REDOUBLANT PAR SERIE(2018)", las = 4, shade = TRUE)
+```
+
+
+
+```{r}
+# Croisement serie et rang
+cros_2017 = table(candidat$rangEnTerminale[candidat$annee == 2017], candidat$serie[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~serie+rangEnTerminale, data = candidat[candidat$annee == 2017,], color = TRUE, main = "RANG PAR SERIE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$rangEnTerminale[candidat$annee == 2018], candidat$serie[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~serie+rangEnTerminale, data = candidat[candidat$annee == 2018,], color = TRUE, main = "RANG PAR SERIE(2018)", las = 4, shade = TRUE)
+```
+
+
+
+```{r}
+## CROISEMENT NATIONALITE ET MENTION AU BAC
+cros_2017 = table(candidat$mentionAuBac[candidat$annee == 2017], candidat$Nationalite[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~Nationalite+mentionAuBac, data = candidat[candidat$annee == 2017,], color = TRUE, main = "MENTION PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$mentionAuBac[candidat$annee == 2018], candidat$Nationalite[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~Nationalite+mentionAuBac, data = candidat[candidat$annee == 2018,], color = TRUE, main = "MENTION PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+```
+
+
+```{r}
+## CROISEMENT NATIONALITE ET AGE
+cros_2017 = table(candidat$age[candidat$annee == 2017], candidat$Nationalite[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+candidat[candidat$annee == 2017,]%>%ggbivariate(outcome="Nationalite",explanatory = c("age"))
+cros_2018 = table(candidat$age[candidat$annee == 2018], candidat$Nationalite[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+candidat[candidat$annee == 2018,]%>%ggbivariate(outcome="Nationalite",explanatory = c("age"))
+```
+
+
+```{r}
+
+## CROISEMENT NATIONALITE ET REDOUBLEMENT
+cros_2017 = table(candidat$redoublementTerminale[candidat$annee == 2017], candidat$Nationalite[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~Nationalite+redoublementTerminale, data = candidat[candidat$annee == 2017,], color = TRUE, main = "REDOUBLANT PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$redoublementTerminale[candidat$annee == 2018], candidat$Nationalite[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~Nationalite+redoublementTerminale, data = candidat[candidat$annee == 2018,], color = TRUE, main = "REDOUBLANT PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+```
+
+
+```{r}
+# croisement Nationalité et RANG
+cros_2017 = table(candidat$rangEnTerminale[candidat$annee == 2017], candidat$Nationalite[candidat$annee == 2017])
+knitr::kable(lprop(cros_2017))
+#mosaicplot(~Nationalite+rangEnTerminale, data = candidat[candidat$annee == 2017,], color = TRUE, main = "RANG PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$rangEnTerminale[candidat$annee == 2018], candidat$Nationalite[candidat$annee == 2018])
+knitr::kable(lprop(cros_2018))
+#mosaicplot(~Nationalite+rangEnTerminale, data = candidat[candidat$annee == 2018,], color = TRUE, main = "RANG PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+```
+
+
+
+```{r}
+#Croisement Nationalité et mention
+cros_2017 = table(candidat$mentionAuBac[candidat$annee == 2017], candidat$Nationalite[candidat$annee == 2017])
+knitr::kable(lprop(cros_2017))
+mosaicplot(~Nationalite+mentionAuBac, data = candidat[candidat$annee == 2017,], color = TRUE, main = "MENTION PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$mentionAuBac[candidat$annee == 2018], candidat$Nationalite[candidat$annee == 2018])
+knitr::kable(lprop(cros_2018))
+mosaicplot(~Nationalite+mentionAuBac, data = candidat[candidat$annee == 2018,], color = TRUE, main = "MENTION PAR NATIONNALITE(2017)", las = 1, shade = TRUE)
+```
+
+
+```{r}
+## CROISEMENT AGE ET REDOUBLEMENT
+cros_2017 = table(candidat$redoublementTerminale[candidat$annee == 2017], candidat$age[candidat$annee == 2017])
+knitr::kable(lprop(cros_2017))
+candidat[candidat$annee == 2017,]%>%ggbivariate(outcome="redoublementTerminale",explanatory = c("age"))
+cros_2018 = table(candidat$redoublementTerminale[candidat$annee == 2018], candidat$age[candidat$annee == 2018])
+knitr::kable(lprop(cros_2018))
+candidat[candidat$annee == 2018,]%>%ggbivariate(outcome="redoublementTerminale",explanatory = c("age"))
+```
+
+
+
+```{r}
+## CROISEMENT AGE ET mention au bac
+cros_2017 = table(candidat$mentionAuBac[candidat$annee == 2017], candidat$age[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+candidat[candidat$annee == 2017,]%>%ggbivariate(outcome="mentionAuBac",explanatory = c("age"))
+cros_2018 = table(candidat$mentionAuBac[candidat$annee == 2018], candidat$age[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+candidat[candidat$annee == 2018,]%>%ggbivariate(outcome="mentionAuBac",explanatory = c("age"))
+```
+
+
+
+```{r}
+# AGE ET RANG
+cros_2017 = table(candidat$rangEnTerminale[candidat$annee == 2017], candidat$age[candidat$annee == 2017])
+knitr::kable(lprop(cros_2017))
+#candidat[candidat$annee == 2017,]%>%ggbivariate(outcome="mentionAuBac",explanatory = c("age"))
+cros_2018 = table(candidat$rangEnTerminale[candidat$annee == 2018], candidat$age[candidat$annee == 2018])
+knitr::kable(lprop(cros_2018))
+#candidat[candidat$annee == 2018,]%>%ggbivariate(outcome="mentionAuBac",explanatory = c("age"))
+```
+
+
+```{r}
+# CROISEMENT MENTION ET REDOUBLEMENT
+cros_2017 = table(candidat$mentionAuBac[candidat$annee == 2017], candidat$redoublementTerminale[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~redoublementTerminale+mentionAuBac, data = candidat[candidat$annee == 2017,], color = TRUE, main = "REDOUBLANT PAR MENTION(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$mentionAuBac[candidat$annee == 2018], candidat$redoublementTerminale[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~redoublementTerminale+mentionAuBac, data = candidat[candidat$annee == 2018,], color = TRUE, main = "REDOUBLANT PAR MENTION(2018)", las = 1, shade = TRUE)
+```
+
+
+
+```{r}
+#REDOUBLEMENT ET RANG
+cros_2017 = table(candidat$rangEnTerminale[candidat$annee == 2017], candidat$redoublementTerminale[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~redoublementTerminale+mentionAuBac, data = candidat[candidat$annee == 2017,], color = TRUE, main = "REDOUBLANT PAR MENTION(2017)", las = 1, shade = TRUE)
+cros_2018 = table(candidat$rangEnTerminale[candidat$annee == 2018], candidat$redoublementTerminale[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~redoublementTerminale+mentionAuBac, data = candidat[candidat$annee == 2018,], color = TRUE, main = "REDOUBLANT PAR MENTION(2018)", las = 1, shade = TRUE)
+```
+
+
+## CROISEMENT DE LA VARIABLE ADMISSIBLE ET LES AUTRES VARIABLES
+
+
+```{r}
+# Croisement admis et age
+cros_2017 = table(candidat$age[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+candidat[candidat$annee == 2017,]%>%ggbivariate(outcome="admissible",explanatory = c("age"))
+cros_2018 = table(candidat$age[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+candidat[candidat$annee == 2018,]%>%ggbivariate(outcome="admissible",explanatory = c("age"))
+```
+
+
+
+```{r}
+# croisement admissible et genre
+cros_2017 = table(candidat$genre[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admissible+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "ADMISSIBLE PAR GENRE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$genre[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admissible+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "ADMISSIBLE PAR GENRE(2017)", las = 4, shade = TRUE)
+```
+
+
+
+```{r}
+# admissible et redoublement terminale
+cros_2017 = table(candidat$redoublementTerminale[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admissible+redoublementTerminale, data = candidat[candidat$annee == 2017,], color = TRUE, main = "admissible / redoublement(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$redoublementTerminale[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admissible+redoublementTerminale, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 4, shade = TRUE)
+```
+
+
+
+```{r}
+# CROISEMENT ADMISSIBLE ET MENTION
+cros_2017 = table(candidat$mentionAuBac[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admissible+mentionAuBac, data = candidat[candidat$annee == 2017,], color = TRUE, main = "ADMISSIBLE PAR MENTION(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$mentionAuBac[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admissible+mentionAuBac, data = candidat[candidat$annee == 2018,], color = TRUE, main = "ADMISSIBLE PAR MENTION(2017)", las = 4, shade = TRUE)
+
+```
+
+
+
+```{r}
+# CROISEMENT ADMISSIBLE ET SERIE
+cros_2017 = table(candidat$serie[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admissible+serie, data = candidat[candidat$annee == 2017,], color = TRUE, main = "ADMISSIBLE PAR SERIE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$serie[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admissible+serie, data = candidat[candidat$annee == 2018,], color = TRUE, main = "ADMISSIBLE PAR SERIE(2018)", las = 4, shade = TRUE)
+
+```
+
+
+
+```{r}
+# CROISEMENT ADMISSIBLE ET NATIONALITE
+cros_2017 = table(candidat$Nationalite[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admissible+Nationalite, data = candidat[candidat$annee == 2017,], color = TRUE, main = "ADMISSIBLE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+cros_2018 = table(candidat$Nationalite[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admissible+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "ADMISSIBLE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+
+```
+
+
+```{r}
+# ADMISSIBLE ET DREN
+cros_2017 = table(candidat$DREN[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~admis+DREN, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+cros_2018 = table(candidat$DREN[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+chisq.test(candidat$admissible, candidat$DREN)
+```
+
+
+
+```{r}
+# admissible et rang
+cros_2017 = table(candidat$rangEnTerminale[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+  cros_2018 = table(candidat$rangEnTerminale[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+  chisq.test(candidat$admissible, candidat$rangEnTerminale)
+```
+
+
+
+
+```{r}
+# admissible et etablissement
+cros_2017 = table(candidat$etablissementOrigine[candidat$annee == 2017], candidat$admissible[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+cros_2018 = table(candidat$etablissementOrigine[candidat$annee == 2018], candidat$admissible[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+chisq.test(candidat$admissible, candidat$etablissementOrigine)
+
+```
+
+
+
+## CROISEMENT DE LA VARIABLE ADMIS ET DES AUTRES VARIABLES
+
+```{r}
+# Croisement admis et age
+cros_2017 = table(candidat$age[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+candidat[candidat$annee == 2017,]%>%ggbivariate(outcome="admis",explanatory = c("age"))
+cros_2018 = table(candidat$age[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+candidat[candidat$annee == 2018,]%>%ggbivariate(outcome="admis",explanatory = c("age"))
+``` 
+
+
+
+```{r}
+# croisement admis et genre
+cros_2017 = table(candidat$genre[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admis+genre, data = candidat[candidat$annee == 2017,], color = TRUE, main = "ADMIS PAR GENRE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$genre[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admis+genre, data = candidat[candidat$annee == 2018,], color = TRUE, main = "ADMIS PAR GENRE(2017)", las = 4, shade = TRUE)
+```
+
+
+```{r}
+# admis et redoublement terminale
+cros_2017 = table(candidat$redoublementTerminale[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admis+redoublementTerminale, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$redoublementTerminale[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admis+redoublementTerminale, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 4, shade = TRUE)
+```
+
+
+```{r}
+# CROISEMENT ADMIS ET MENTION
+cros_2017 = table(candidat$mentionAuBac[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admis+mentionAuBac, data = candidat[candidat$annee == 2017,], color = TRUE, main = "ADMIS PAR MENTION(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$mentionAuBac[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admis+mentionAuBac, data = candidat[candidat$annee == 2018,], color = TRUE, main = "ADMIS PAR MENTION(2017)", las = 4, shade = TRUE)
+
+```
+
+
+```{r}
+# CROISEMENT ADMIS ET SERIE
+cros_2017 = table(candidat$serie[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admis+serie, data = candidat[candidat$annee == 2017,], color = TRUE, main = "ADMIS PAR SERIE(2017)", las = 4, shade = TRUE)
+cros_2018 = table(candidat$serie[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admis+serie, data = candidat[candidat$annee == 2018,], color = TRUE, main = "ADMIS PAR SERIE(2018)", las = 4, shade = TRUE)
+
+```
+
+
+
+
+```{r}
+# CROISEMENT ADMIS ET NATIONALITE
+cros_2017 = table(candidat$Nationalite[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+cros_2018 = table(candidat$Nationalite[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+
+```
+
+
+
+```{r}
+# ADMIS ET DREN
+cros_2017 = table(candidat$DREN[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~admis+DREN, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+cros_2018 = table(candidat$DREN[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+chisq.test(candidat$admis, candidat$DREN)
+```
+
+
+
+```{r}
+# admis et rang
+cros_2017 = table(candidat$rangEnTerminale[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+cros_2018 = table(candidat$rangEnTerminale[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+chisq.test(candidat$admis, candidat$rangEnTerminale)
+```
+
+
+
+```{r}
+# admis et etablissement
+cros_2017 = table(candidat$etablissementOrigine[candidat$annee == 2017], candidat$admis[candidat$annee == 2017])
+knitr::kable(cprop(cros_2017))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2017,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+cros_2018 = table(candidat$etablissementOrigine[candidat$annee == 2018], candidat$admis[candidat$annee == 2018])
+knitr::kable(cprop(cros_2018))
+#mosaicplot(~admis+Nationalite, data = candidat[candidat$annee == 2018,], color = TRUE, main = "GENRE PAR NATIONNALITE(2017)", las = 3, shade = TRUE)
+chisq.test(candidat$admis, candidat$etablissementOrigine)
+```
+
+
+
+## RECAPITULATIFS
+```{r}
+theme_gtsummary_language("fr", decimal.mark = ",", big.mark = ".")
+candidat %>% select(age, genre, Nationalite, admis)%>%tbl_summary(by="admis")%>% add_overall(last = T)%>% add_p()
+candidat %>% select(redoublementTerminale, mentionAuBac, admis) %>% tbl_summary(by="admis")%>% add_overall(last=T)%>% add_p()
+candidat %>% select(serie,admis) %>% tbl_summary(by="admis")%>% add_overall(last=T)%>% add_p()
+```
+
+
+
+c
+## ANALYSE DESCRIPTIVE DES CHOIX DES CANDIDATS
+
+A cette etape, nous nous focaliserons sur les choix des candidats issus de la serie D
+
+
+```{r}
+# Recuperation par serie
+
+serie_d = choix[candidat$serie == "D", ]
+#serie_E = choix[candidat$serie == "A2",]
+
+```
+
+
+```{r}
+
+ggplot(serie_d) + aes(x = codeFiliere_1) + geom_bar(aes(fill=as.factor(codeFiliere_1) ))+ylab("Effectifs")+labs(title = "1ER CHOIX SERIE D", fill="Filiere")
+ggplot(serie_d) + aes(x = codeFiliere_2) + geom_bar(aes(fill=as.factor(codeFiliere_2) ))+ylab("Effectifs")+labs(title = "2e CHOIX SERIE D", fill="Filiere")
+ggplot(serie_d) + aes(x = codeFiliere_3) + geom_bar(aes(fill=as.factor(codeFiliere_3) ))+ylab("Effectifs")+labs(title = "3e CHOIX SERIE D", fill="Filiere")
+ggplot(serie_d) + aes(x = codeFiliere_4) + geom_bar(aes(fill=as.factor(codeFiliere_4) ))+ylab("Effectifs")+labs(title = "4e CHOIX SERIE D", fill="Filiere")
+ggplot(serie_d) + aes(x = codeFiliere_5) + geom_bar(aes(fill=as.factor(codeFiliere_5) ))+ylab("Effectifs")+labs(title = "5e CHOIX SERIE D", fill="Filiere")
+ggplot(serie_d) + aes(x = codeFiliere_6) + geom_bar(aes(fill=as.factor(codeFiliere_6) ))+ylab("Effectifs")+labs(title = "6e CHOIX SERIE D", fill="Filiere")
+
+```
+
+# ANALYSE DESCRIPTIVE MULTIVARIEE
+
+## ANALYSE FACTORIELLE
+
+```{r}
+source("script_yasmine.R")
+
+df_admissible = full_join(candidat, choix)
+df_admissible = full_join(df_admissible, note)
+df_admis = full_join(df_admissible, test, by=c("identifiantCandidat", "annee"))
+df_admissible_D= selection_serie_filiere(df_admissible, "D","BCPST" )
+df_admis_D = selection_serie_filiere(df_admis, "D", "BCPST")
+df_admis_D = df_admis_D[df_admis_D$admissible == 1, ]
+df_admissible_A2 = selection_serie_filiere(df_admissible, "A2", "CAE")
+df_admis_A2 = selection_serie_filiere(df_admis, "A2", "CAE")
+df_admis_A2 = df_admis_A2[df_admis_A2$admissible == 1, ]
+#table(df_admissible_D$redoublementTerminale, df_admissible_D$admis_BCPST)
+df_acm_D = df_admissible_D %>% select(genre, mentionAuBac, rangEnTerminale, redoublementTerminale, admissible, admis_BCPST)
+
+df_acm_A2 = df_admissible_A2 %>% select(genre, mentionAuBac, rangEnTerminale, redoublementTerminale, admissible, admis_CAE)
+
+df_acp_admissible_D = df_admissible_D %>% select(-identifiantCandidat, -etablissementOrigine, -dateNaissance, -Nationalite, -serie, -FiliereAccueil, -DREN, -EcoleAccueil, -annee, -Cycle, -moyenneDossier_1, -moyenneDossier_2, -moyenneDossier_3, -moyenneDossier_4, -moyenneDossier_5, -moyenneDossier_6, -moyenneDossier_7, -moyenneDossier_8,-moyenneDossier_9, -moyenneTest_1, -moyenneTest_2, -moyenneTest_3, -moyenneTest_4, -moyenneTest_5, -moyenneTest_6, -moyenneTest_7, -moyenneTest_8, -moyenneTest_9, -moyenneDefinitive_1, -moyenneDefinitive_2, -moyenneDefinitive_3, -moyenneDefinitive_4, -moyenneDefinitive_5, -moyenneDefinitive_6, -moyenneDefinitive_7, -moyenneDefinitive_8, -moyenneDefinitive_9, -cycles_1, -cycles_2, -cycles_3, -cycles_4, -cycles_5, -cycles_6, -cycles_7, -cycles_8, -cycles_9, -admis , -codeEcole_1, -codeEcole_2, -codeEcole_3, -codeEcole_4, -codeEcole_5, -codeEcole_6, -codeEcole_7, -codeEcole_8, -codeEcole_9, -redoublementTerminale, -rangEnTerminale, -mentionAuBac, -codeFiliere_1 , -codeFiliere_2, -codeFiliere_3, -codeFiliere_4, -codeFiliere_5, -codeFiliere_6, -codeFiliere_7, -codeFiliere_8, -codeFiliere_9, -genre, -admis_BCPST)
+df_acp_admissible_D = df_acp_admissible_D[,apply(df_acp_admissible_D, 2, function(x) !all(is.na(x)))]
+
+
+df_acp_admissible_A2 = df_admissible_A2 %>% select(-identifiantCandidat, -etablissementOrigine, -dateNaissance, -Nationalite, -serie, -FiliereAccueil, -DREN, -EcoleAccueil, -annee, -Cycle, -moyenneDossier_1, -moyenneDossier_2, -moyenneDossier_3, -moyenneDossier_4, -moyenneDossier_5, -moyenneDossier_6, -moyenneDossier_7, -moyenneDossier_8,-moyenneDossier_9, -moyenneTest_1, -moyenneTest_2, -moyenneTest_3, -moyenneTest_4, -moyenneTest_5, -moyenneTest_6, -moyenneTest_7, -moyenneTest_8, -moyenneTest_9, -moyenneDefinitive_1, -moyenneDefinitive_2, -moyenneDefinitive_3, -moyenneDefinitive_4, -moyenneDefinitive_5, -moyenneDefinitive_6, -moyenneDefinitive_7, -moyenneDefinitive_8, -moyenneDefinitive_9, -cycles_1, -cycles_2, -cycles_3, -cycles_4, -cycles_5, -cycles_6, -cycles_7, -cycles_8, -cycles_9, -admis , -codeEcole_1, -codeEcole_2, -codeEcole_3, -codeEcole_4, -codeEcole_5, -codeEcole_6, -codeEcole_7, -codeEcole_8, -codeEcole_9, -genre, -redoublementTerminale, -rangEnTerminale, -mentionAuBac, -codeFiliere_1 , -codeFiliere_2, -codeFiliere_3, -codeFiliere_4, -codeFiliere_5, -codeFiliere_6, -codeFiliere_7, -codeFiliere_8, -codeFiliere_9 , -admis_CAE)
+df_acp_admissible_A2 = df_acp_admissible_A2[,apply(df_acp_admissible_A2, 2, function(x) !all(is.na(x)))]
+
+df_acp_admis_D = df_admis_D %>% select(-identifiantCandidat, -etablissementOrigine, -dateNaissance, -Nationalite, -serie, -FiliereAccueil, -DREN, -EcoleAccueil, -annee, -Cycle, -moyenneDossier_1, -moyenneDossier_2, -moyenneDossier_3, -moyenneDossier_4, -moyenneDossier_5, -moyenneDossier_6, -moyenneDossier_7, -moyenneDossier_8,-moyenneDossier_9, -moyenneTest_1, -moyenneTest_2, -moyenneTest_3, -moyenneTest_4, -moyenneTest_5, -moyenneTest_6, -moyenneTest_7, -moyenneTest_8, -moyenneTest_9, -moyenneDefinitive_1, -moyenneDefinitive_2, -moyenneDefinitive_3, -moyenneDefinitive_4, -moyenneDefinitive_5, -moyenneDefinitive_6, -moyenneDefinitive_7, -moyenneDefinitive_8, -moyenneDefinitive_9, -cycles_1, -cycles_2, -cycles_3, -cycles_4, -cycles_5, -cycles_6, -cycles_7, -cycles_8, -cycles_9, -admis , -codeEcole_1, -codeEcole_2, -codeEcole_3, -codeEcole_4, -codeEcole_5, -codeEcole_6, -codeEcole_7, -codeEcole_8, -codeEcole_9, -redoublementTerminale, -rangEnTerminale, -mentionAuBac, -codeFiliere_1 , -codeFiliere_2, -codeFiliere_3, -codeFiliere_4, -codeFiliere_5, -codeFiliere_6, -codeFiliere_7, -codeFiliere_8, -codeFiliere_9, -genre, -admissible)
+
+df_acp_admis_D = df_acp_admis_D[,apply(df_acp_admis_D, 2, function(x) !all(is.na(x)))]
+
+
+df_acp_admis_A2 = df_admis_A2 %>% select(-identifiantCandidat, -etablissementOrigine, -dateNaissance, -Nationalite, -serie, -FiliereAccueil, -DREN, -EcoleAccueil, -annee, -Cycle, -moyenneDossier_1, -moyenneDossier_2, -moyenneDossier_3, -moyenneDossier_4, -moyenneDossier_5, -moyenneDossier_6, -moyenneDossier_7, -moyenneDossier_8,-moyenneDossier_9, -moyenneTest_1, -moyenneTest_2, -moyenneTest_3, -moyenneTest_4, -moyenneTest_5, -moyenneTest_6, -moyenneTest_7, -moyenneTest_8, -moyenneTest_9, -moyenneDefinitive_1, -moyenneDefinitive_2, -moyenneDefinitive_3, -moyenneDefinitive_4, -moyenneDefinitive_5, -moyenneDefinitive_6, -moyenneDefinitive_7, -moyenneDefinitive_8, -moyenneDefinitive_9, -cycles_1, -cycles_2, -cycles_3, -cycles_4, -cycles_5, -cycles_6, -cycles_7, -cycles_8, -cycles_9, -admis , -codeEcole_1, -codeEcole_2, -codeEcole_3, -codeEcole_4, -codeEcole_5, -codeEcole_6, -codeEcole_7, -codeEcole_8, -codeEcole_9, -redoublementTerminale, -rangEnTerminale, -mentionAuBac, -codeFiliere_1 , -codeFiliere_2, -codeFiliere_3, -codeFiliere_4, -codeFiliere_5, -codeFiliere_6, -codeFiliere_7, -codeFiliere_8, -codeFiliere_9, -genre, -admissible)
+#df_acp_admis_A2 = df_acp_admis_A2[df_acp_admis_A2$admissible == 1, ]
+df_acp_admis_A2 = df_acp_admis_A2[,apply(df_acp_admis_A2, 2, function(x) !all(is.na(x)))]
+
+str(df_acp_admis_D)
+
+# Typage des données
+df_acm_D$admis_BCPST = as.factor(df_acm_D$admis_BCPST)
+df_acm_A2$admis_CAE = as_factor(df_acm_A2$admis_CAE)
+
+
+#df_acp_admissible_D$admis_BCPST = as.factor(df_acp_admissible_D$admis_BCPST)
+df_acp_admissible_D$`2NDE_ANGLAIS` = as.numeric(df_acp_admissible_D$`2NDE_ANGLAIS`)
+df_acp_admissible_D$`1ERE_ANGLAIS` = as.numeric(df_acp_admissible_D$`1ERE_ANGLAIS`)
+df_acp_admissible_D$TLE_ANGLAIS =as.numeric(df_acp_admissible_D$TLE_ANGLAIS)
+df_acp_admissible_D$BAC_ANGLAIS = as.numeric(df_acp_admissible_D$BAC_ANGLAIS)
+
+df_acp_admissible_D$`2NDE_FRANCAIS` = as.numeric(df_acp_admissible_D$`2NDE_FRANCAIS`)
+df_acp_admissible_D$`1ERE_FRANCAIS` = as.numeric(df_acp_admissible_D$`1ERE_FRANCAIS`)
+df_acp_admissible_D$TLE_FRANCAIS =as.numeric(df_acp_admissible_D$TLE_FRANCAIS)
+df_acp_admissible_D$BAC_FRANCAIS = as.numeric(df_acp_admissible_D$BAC_FRANCAIS)
+
+df_acp_admissible_D$`2NDE_SCIENCES PHYSIQUES` = as.numeric(df_acp_admissible_D$`2NDE_SCIENCES PHYSIQUES`)
+df_acp_admissible_D$`1ERE_SCIENCES PHYSIQUES` = as.numeric(df_acp_admissible_D$`1ERE_SCIENCES PHYSIQUES`)
+df_acp_admissible_D$`TLE_SCIENCES PHYSIQUES` =as.numeric(df_acp_admissible_D$`TLE_SCIENCES PHYSIQUES`)
+df_acp_admissible_D$`BAC_SCIENCES PHYSIQUES` = as.numeric(df_acp_admissible_D$`BAC_SCIENCES PHYSIQUES`)
+
+df_acp_admissible_D$`2NDE_SVT` = as.numeric(df_acp_admissible_D$`2NDE_SVT`)
+df_acp_admissible_D$`1ERE_SVT` = as.numeric(df_acp_admissible_D$`1ERE_SVT`)
+df_acp_admissible_D$TLE_SVT =as.numeric(df_acp_admissible_D$TLE_SVT)
+df_acp_admissible_D$BAC_SVT = as.numeric(df_acp_admissible_D$BAC_SVT)
+
+df_acp_admissible_D$`2NDE_MATHEMATIQUES` = as.numeric(df_acp_admissible_D$`2NDE_MATHEMATIQUES`)
+df_acp_admissible_D$`1ERE_MATHEMATIQUES` = as.numeric(df_acp_admissible_D$`1ERE_MATHEMATIQUES`)
+df_acp_admissible_D$TLE_MATHEMATIQUES =as.numeric(df_acp_admissible_D$TLE_MATHEMATIQUES)
+df_acp_admissible_D$BAC_MATHEMATIQUES = as.numeric(df_acp_admissible_D$BAC_MATHEMATIQUES)
+
+#df_acp_admissible_A2$admis_CAE = as.factor(df_acp_admissible_A2$admis_CAE)
+df_acp_admissible_A2$`2NDE_ANGLAIS` = as.numeric(df_acp_admissible_A2$`2NDE_ANGLAIS`)
+df_acp_admissible_A2$`1ERE_ANGLAIS` = as.numeric(df_acp_admissible_A2$`1ERE_ANGLAIS`)
+df_acp_admissible_A2$TLE_ANGLAIS =as.numeric(df_acp_admissible_A2$TLE_ANGLAIS)
+df_acp_admissible_A2$BAC_ANGLAIS = as.numeric(df_acp_admissible_A2$BAC_ANGLAIS)
+
+df_acp_admissible_A2$`2NDE_FRANCAIS` = as.numeric(df_acp_admissible_A2$`2NDE_FRANCAIS`)
+df_acp_admissible_A2$`1ERE_FRANCAIS` = as.numeric(df_acp_admissible_A2$`1ERE_FRANCAIS`)
+df_acp_admissible_A2$TLE_FRANCAIS =as.numeric(df_acp_admissible_A2$TLE_FRANCAIS)
+df_acp_admissible_A2$BAC_FRANCAIS = as.numeric(df_acp_admissible_A2$BAC_FRANCAIS)
+
+
+df_acp_admissible_A2$`2NDE_MATHEMATIQUES` = as.numeric(df_acp_admissible_A2$`2NDE_MATHEMATIQUES`)
+df_acp_admissible_A2$`1ERE_MATHEMATIQUES` = as.numeric(df_acp_admissible_A2$`1ERE_MATHEMATIQUES`)
+df_acp_admissible_A2$TLE_MATHEMATIQUES =as.numeric(df_acp_admissible_A2$TLE_MATHEMATIQUES)
+df_acp_admissible_A2$BAC_MATHEMATIQUES = as.numeric(df_acp_admissible_A2$BAC_MATHEMATIQUES)
+
+
+df_acp_admis_D$`2NDE_ANGLAIS` = as.numeric(df_acp_admis_D$`2NDE_ANGLAIS`)
+df_acp_admis_D$`1ERE_ANGLAIS` = as.numeric(df_acp_admis_D$`1ERE_ANGLAIS`)
+df_acp_admis_D$TLE_ANGLAIS =as.numeric(df_acp_admis_D$TLE_ANGLAIS)
+df_acp_admis_D$BAC_ANGLAIS = as.numeric(df_acp_admis_D$BAC_ANGLAIS)
+
+df_acp_admis_D$`2NDE_FRANCAIS` = as.numeric(df_acp_admis_D$`2NDE_FRANCAIS`)
+df_acp_admis_D$`1ERE_FRANCAIS` = as.numeric(df_acp_admis_D$`1ERE_FRANCAIS`)
+df_acp_admis_D$TLE_FRANCAIS =as.numeric(df_acp_admis_D$TLE_FRANCAIS)
+df_acp_admis_D$BAC_FRANCAIS = as.numeric(df_acp_admis_D$BAC_FRANCAIS)
+
+df_acp_admis_D$`2NDE_SCIENCES PHYSIQUES` = as.numeric(df_acp_admis_D$`2NDE_SCIENCES PHYSIQUES`)
+df_acp_admis_D$`1ERE_SCIENCES PHYSIQUES` = as.numeric(df_acp_admis_D$`1ERE_SCIENCES PHYSIQUES`)
+df_acp_admis_D$`TLE_SCIENCES PHYSIQUES` =as.numeric(df_acp_admis_D$`TLE_SCIENCES PHYSIQUES`)
+df_acp_admis_D$`BAC_SCIENCES PHYSIQUES` = as.numeric(df_acp_admis_D$`BAC_SCIENCES PHYSIQUES`)
+
+df_acp_admis_D$`2NDE_SVT` = as.numeric(df_acp_admis_D$`2NDE_SVT`)
+df_acp_admis_D$`1ERE_SVT` = as.numeric(df_acp_admis_D$`1ERE_SVT`)
+df_acp_admis_D$TLE_SVT =as.numeric(df_acp_admis_D$TLE_SVT)
+df_acp_admis_D$BAC_SVT = as.numeric(df_acp_admis_D$BAC_SVT)
+
+df_acp_admis_D$`2NDE_MATHEMATIQUES` = as.numeric(df_acp_admis_D$`2NDE_MATHEMATIQUES`)
+df_acp_admis_D$`1ERE_MATHEMATIQUES` = as.numeric(df_acp_admis_D$`1ERE_MATHEMATIQUES`)
+df_acp_admis_D$TLE_MATHEMATIQUES =as.numeric(df_acp_admis_D$TLE_MATHEMATIQUES)
+df_acp_admis_D$BAC_MATHEMATIQUES = as.numeric(df_acp_admis_D$BAC_MATHEMATIQUES)
+
+df_acp_admis_D$ANGLAIS = as.numeric(df_acp_admis_D$ANGLAIS)
+df_acp_admis_D$`CULTURE GENERALE` = as.numeric(df_acp_admis_D$`CULTURE GENERALE`)
+df_acp_admis_D$`CULTURE SCIENTIFIQUE` = as.numeric(df_acp_admis_D$`CULTURE SCIENTIFIQUE`)
+df_acp_admis_D$admis_BCPST = as.factor(df_acp_admis_D$admis_BCPST)
+
+
+df_acp_admis_A2$`2NDE_ANGLAIS` = as.numeric(df_acp_admis_A2$`2NDE_ANGLAIS`)
+df_acp_admis_A2$`1ERE_ANGLAIS` = as.numeric(df_acp_admis_A2$`1ERE_ANGLAIS`)
+df_acp_admis_A2$TLE_ANGLAIS =as.numeric(df_acp_admis_A2$TLE_ANGLAIS)
+df_acp_admis_A2$BAC_ANGLAIS = as.numeric(df_acp_admis_A2$BAC_ANGLAIS)
+
+df_acp_admis_A2$`2NDE_FRANCAIS` = as.numeric(df_acp_admis_A2$`2NDE_FRANCAIS`)
+df_acp_admis_A2$`1ERE_FRANCAIS` = as.numeric(df_acp_admis_A2$`1ERE_FRANCAIS`)
+df_acp_admis_A2$TLE_FRANCAIS =as.numeric(df_acp_admis_A2$TLE_FRANCAIS)
+df_acp_admis_A2$BAC_FRANCAIS = as.numeric(df_acp_admis_A2$BAC_FRANCAIS)
+
+
+df_acp_admis_A2$`2NDE_MATHEMATIQUES` = as.numeric(df_acp_admis_A2$`2NDE_MATHEMATIQUES`)
+df_acp_admis_A2$`1ERE_MATHEMATIQUES` = as.numeric(df_acp_admis_A2$`1ERE_MATHEMATIQUES`)
+df_acp_admis_A2$TLE_MATHEMATIQUES =as.numeric(df_acp_admis_A2$TLE_MATHEMATIQUES)
+df_acp_admis_A2$BAC_MATHEMATIQUES = as.numeric(df_acp_admis_A2$BAC_MATHEMATIQUES)
+df_acp_admis_A2$admis_CAE = as.factor(df_acp_admis_A2$admis_CAE)
+```
+
+
+```{r}
+# ACM serie D
+
+res.mca_D = MCA(df_acm_D, ncp = 8, graph = F, quali.sup = c(5,6), level.ventil = 0.045 )
+
+barplot(res.mca_D$eig[,2], names = paste("Dim",1:nrow(res.mca_D$eig)), main = "VARIANCES EXPLIQUEES PAR DIMENSION (%)",
+        xlab = "Principal Dimensions",
+        ylab = "Pourcentage de variances",
+        col ="steelblue",)
+lines(x = 1:nrow(res.mca_D$eig), res.mca_D$eig[,2], 
+      type = "b", pch = 19, col = "red")
+
+# plot(res.mca)
+# plot(res.mca,
+#      invisible = c("ind", "quanti.sup"),
+#      cex = 0.8)
+fviz_mca_var (res.mca_D, choice = "mca.cor",
+            repel = TRUE, 
+            ggtheme = theme_minimal ())
+fviz_mca_var(res.mca_D, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE, 
+             ggtheme = theme_minimal())
+```
+
+
+```{r}
+# ACM serie A2
+
+res.mca_A2 = MCA(df_acm_A2, ncp = 8, graph = F, quali.sup = c(5,6), level.ventil = 0.045 )
+
+barplot(res.mca_A2$eig[,2], names = paste("Dim",1:nrow(res.mca_A2$eig)), main = "VARIANCES EXPLIQUEES PAR DIMENSION (%)",
+        xlab = "Principal Dimensions",
+        ylab = "Pourcentage de variances",
+        col ="steelblue",)
+lines(x = 1:nrow(res.mca_A2$eig), res.mca_A2$eig[,2], 
+      type = "b", pch = 19, col = "red")
+
+# plot(res.mca)
+# plot(res.mca,
+#      invisible = c("ind", "quanti.sup"),
+#      cex = 0.8)
+fviz_mca_var (res.mca_A2, choice = "mca.cor",
+            repel = TRUE, 
+            ggtheme = theme_minimal ())
+fviz_mca_var(res.mca_A2, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE, 
+             ggtheme = theme_minimal())
+```
+
+```{r}
+# Cactérisation des admissibles de la serie D et filière BCPST
+
+
+res.pca_D = PCA(df_acp_admissible_D, quali.sup = 2, ncp = 8, graph = T)
+fviz_eig(res.pca_D, addlabels = T)
+fviz_pca_var(res.pca_D, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+fviz_pca_var(res.pca_D, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), axes = c(1,3),  repel = TRUE)
+
+
+fviz_pca_ind(res.pca_D, col.ind="cos2") + scale_color_gradient2(low="white", mid="blue", high="red", midpoint=0.6, space = "Lab")
+fviz_pca_ind(res.pca_D, col.ind="cos2", axes = c(1,3)) + scale_color_gradient2(low="white", mid="blue", high="red", midpoint=0.6, space = "Lab")
+
+
+
+
+```
+
+```{r}
+# Cactérisation des admissibles de la serie A2 et filière CAE
+
+res.pca_A2 = PCA(df_acp_admissible_A2, quali.sup = 2, ncp = 8, graph = T)
+fviz_eig(res.pca_A2, addlabels = T)
+fviz_pca_var(res.pca_A2, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+fviz_pca_var(res.pca_A2, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), axes = c(1,3),  repel = TRUE)
+
+
+fviz_pca_ind(res.pca_A2, col.ind="cos2") + scale_color_gradient2(low="white", mid="blue", high="red", midpoint=0.6, space = "Lab")
+fviz_pca_ind(res.pca_A2, col.ind="cos2", axes = c(1,3)) + scale_color_gradient2(low="white", mid="blue", high="red", midpoint=0.6, space = "Lab")
+```
+
+
+```{r}
+# Cactérisation des admis de la serie D et filière BCPST
+
+
+res.pca_D = PCA(df_acp_admis_D, quali.sup = 25, ncp = 8, graph = T)
+fviz_eig(res.pca_D, addlabels = T)
+fviz_pca_var(res.pca_D, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+fviz_pca_var(res.pca_D, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), axes = c(1,3),  repel = TRUE)
+
+
+fviz_pca_ind(res.pca_D, col.ind="cos2") + scale_color_gradient2(low="white", mid="blue", high="red", midpoint=0.6, space = "Lab")
+fviz_pca_ind(res.pca_D, col.ind="cos2", axes = c(1,3)) + scale_color_gradient2(low="white", mid="blue", high="red", midpoint=0.6, space = "Lab")
+```
+
+
+```{r}
+# Cactérisation des admis de la serie A2 et filière CAE
+
+
+res.pca_A2 = PCA(df_acp_admis_A2, quali.sup = 17, ncp = 8, graph = T)
+fviz_eig(res.pca_A2, addlabels = T)
+fviz_pca_var(res.pca_A2, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+fviz_pca_var(res.pca_A2, col.var = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), axes = c(1,3),  repel = TRUE)
+
+
+fviz_pca_ind(res.pca_A2, col.ind="cos2") + scale_color_gradient2(low="white", mid="blue", high="red", midpoint=0.6, space = "Lab")
+fviz_pca_ind(res.pca_A2, col.ind="cos2", axes = c(1,3)) + scale_color_gradient2(low="white", mid="blue", high="red", midpoint=0.6, space = "Lab")
+```
+
+## CLASSIFICATION
+
+```{r}
+#my.cah = hclust(dist(scale(df_acp_admis_D)), method = "ward.D2")
+
+# my.cah1 = HCPC(res.mca_D,consol =F, method = "complete", graph = F)
+# plot(my.cah1,choice="tree")
+# plot(my.cah1,choice="3D.map")
+# plot(my.cah1,choice="map",draw.tree=FALSE)
+# data= df_acm_D[df_acm_D$admissible == 1, ]
+# my.acm = MCA(data%>% select(-admissible, -admis_BCPST), graph = F, ncp = 6)
+# my.cah2 = HCPC(my.acm,consol = T, nb.clust=2, method = "ward", graph = F)
+# plot(my.cah2,choice="tree")
+# plot(my.cah2,choice="3D.map")
+# plot(my.cah2,choice="map",draw.tree=FALSE)
+# my.cah2$desc.var
+# dat = my.cah2$data.clust
+# my.cah2$desc.axes
+
+# my.cah2 = HCPC(res.mca_D,consol = T, nb.clust = 2, method = "average", graph = F)
+# plot(my.cah2,choice="tree")
+# plot(my.cah2,choice="3D.map")
+# plot(my.cah2,choice="map",draw.tree=FALSE)
+
+# colnames(df_acp_admis_D)
+# my.cah = hclust(dist(scale(df_acp_admis_D%>% select(-admis_BCPST))), method = "ward.D2", )
+# classe = cutree(my.cah, k =2)
+# df_acp_admis_D1 = cbind.data.frame(df_acp_admis_D, classe = as.factor(classe))
+# df_acp_admis_D2 = cbind.data.frame(df_acp_admis_D%>% select(-admis_BCPST), classe = as.factor(classe))
+# catdes(df_acp_admis_D2, num.var = 25)
+#table(df_acp_admis_D1$admis_BCPST, df_acp_admis_D1$classe)
+# my.cah3 = HCPC(res.mca_D, consol = T, method = "single", graph=F)
+# plot(my.cah3,choice="tree")
+# plot(my.cah3,choice="3D.map")
+# plot(my.cah3,choice="map",draw.tree=FALSE)
+
+# my.cah4 = HCPC(res.mca_D,consol = T, method = "ward", graph = F)
+# plot(my.cah4,choice="tree")
+# plot(my.cah4,choice="3D.map")
+# plot(my.cah4,choice="map",draw.tree=FALSE)
+
+
+
+```
+
+

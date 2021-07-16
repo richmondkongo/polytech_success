@@ -1,0 +1,170 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(FactoMineR)
+library(factoextra)
+library(tidyverse)
+library (plotROC)
+```
+
+
+```{r}
+df_candidat = read_excel("df2017.xlsx", sheet = "candidat")
+df_choix = read_excel("df2017.xlsx", sheet = "choix")
+df_test = read_excel("df2017.xlsx", sheet = "test")
+df_note = read_excel("df2017.xlsx", sheet = "note")
+```
+
+
+```{r}
+df = df_candidat%>%filter(serie == "D")
+df = na.omit(df)
+df = df%>%left_join(df_choix, by=c("identifiantCandidat","annee"))
+df = df%>%left_join(df_note, by=c("identifiantCandidat", "annee"))
+df = df[,apply(df, 2, function(x) !all(is.na(x)))]
+```
+
+
+```{r}
+see_col_with_index = function(df) {
+  for (j in 1:length(colnames(df))) {
+    cat(j, "-", colnames(df)[j])
+    if (j%%3 == 0) {
+      cat("\n")
+    } else {
+      cat("\t\t\t")
+    }
+  }
+}
+see_col_with_index(df)
+```
+
+```{r}
+df = df[, -c(1:3, 5:6, 12, 14,  15:53, 63:71)]
+df$rangEnTerminale[df$rangEnTerminale !="1" & df$rangEnTerminale != "2" & df$rangEnTerminale != "3"] = "0"
+df = cbind(df%>%select(-admissible), df%>%select(admissible))
+str(df)
+
+```
+
+```{r}
+k = 1
+for (i in colnames(df)) {
+    if(k > 17) {
+      #df[is.na(df_choix[, i]), i] = "0"
+      df[, colnames(df%>%select(i))[1]] = as.double(unlist(df%>%select(i)))
+    } else {
+      #df[is.na(df[, i]), i] = "aucun"
+      df[, colnames(df%>%select(i))[1]] = as.factor(unlist(df%>%select(i)))
+    }
+  
+  k = k + 1
+}
+rm(k)
+rm(i)
+str(df)
+```
+
+```{r}
+cat(
+  "total candidat:", nrow(df), 
+  "\ntotal par année:\n\tcandidat 2017:", nrow(df%>%filter(annee == 2017)), 
+  "\n\t\tcandidat admissible:", nrow(df%>%filter(annee == 2017 & admissible == 1)), 
+  "\n\t\tcandidat non-admissible:", nrow(df%>%filter(annee == 2017 & admissible == 0)), 
+  "\n\tcandidat 2018:", nrow(df%>%filter(annee == 2018)),
+  "\n\t\tcandidat admissible:", nrow(df%>%filter(annee == 2018 & admissible == 1)), 
+  "\n\t\tcandidat non-admissible:", nrow(df%>%filter(annee == 2018 & admissible == 0))
+)
+```
+
+```{r}
+set.seed(1)
+prop_adm_2017 = round((nrow(df%>%filter(annee == 2017 & admissible == 1))/nrow(df%>%filter(annee == 2017))) * (nrow(df%>%filter(annee == 2017))/nrow(df)) * 100)
+prop_non_adm_2017 = round((nrow(df%>%filter(annee == 2017 & admissible == 0))/nrow(df%>%filter(annee == 2017))) * (nrow(df%>%filter(annee == 2017))/nrow(df)) * 100)
+
+prop_adm_2018 = round((nrow(df%>%filter(annee == 2018 & admissible == 1))/nrow(df%>%filter(annee == 2018))) * (nrow(df%>%filter(annee == 2018))/nrow(df)) * 100)
+prop_non_adm_2018 = round((nrow(df%>%filter(annee == 2018 & admissible == 0))/nrow(df%>%filter(annee == 2018))) * (nrow(df%>%filter(annee == 2018))/nrow(df)) * 100)
+
+nb_total_train = round((nrow(df)*70)/100)
+
+liste_adm_2017 = sample(nrow(df%>%filter(annee == 2017 & admissible == 1)), nb_total_train * prop_adm_2017 / 100, replace = FALSE)
+liste_non_adm_2017 = sample(nrow(df%>%filter(annee == 2017 & admissible == 0)), nb_total_train * prop_non_adm_2017 / 100, replace = FALSE)
+
+liste_adm_2018 = sample(nrow(df%>%filter(annee == 2018 & admissible == 1)), nb_total_train * prop_adm_2018 / 100, replace = FALSE)
+liste_non_adm_2018 = sample(nrow(df%>%filter(annee == 2018 & admissible == 0)), nb_total_train * prop_non_adm_2018 / 100, replace = FALSE)
+
+liste_train = append(liste_adm_2018, liste_non_adm_2018)
+liste_train = append(liste_train, liste_adm_2017)
+liste_train = append(liste_train, liste_non_adm_2017)
+```
+
+
+
+
+```{r}
+train = df[liste_train, ]%>%select(-annee)
+test = df[-liste_train, ]%>%select(-annee)
+```
+
+
+
+```{r}
+reg_log <- glm(admissible~.,data=train, family = binomial(logit))
+summary(reg_log)
+```
+
+
+```{r}
+car::Anova (reg_log ,type=3,test.statistic = "LR" ,singular.ok=TRUE)
+```
+
+
+```{r}
+reg_log_step <- step(reg_log ,direction="backward")
+```
+
+
+```{r}
+prev_step <- predict(reg_log_step ,newdata=test , type="response")
+head(prev_step)
+```
+
+
+```{r}
+prev_prob <- data.frame(step = predict(reg_log_step ,newdata=test , type="response"), complet = predict(reg_log ,newdata=test , type="response"))
+View(round(prev_prob, 2))
+```
+
+
+```{r}
+prev_class <- apply(prev_prob>=0.5, 2, factor,labels=c(0 , 1))
+head(prev_class , n=5)
+```
+
+
+```{r}
+prev_class <- data.frame(prev_class)
+prev_class%>%mutate(obs=test$admissible)%>%summarise_all(funs(err=mean(obs!=.)))%>%select(-obs_err)%>%round(3)
+```
+
+
+```{r}
+df_roc <- prev_prob%>%mutate(obs=test$admissible)%>%gather(key=methode , value=score , complet ,step)
+ggplot(df_roc, aes(d=obs, m=score, color=methode)) + geom_roc() + theme_classic()
+```
+
+
+```{r}
+df_roc%>%group_by(methode)%>%summarize(AUC=pROC::auc(obs, score))
+pROC::auc(df_roc$obs, df_roc$score)
+```
+
+
+
+

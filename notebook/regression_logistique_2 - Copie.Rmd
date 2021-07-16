@@ -1,0 +1,157 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(FactoMineR)
+library(factoextra)
+library(tidyverse)
+library (plotROC)
+
+library(nnet)
+```
+
+
+```{r}
+df_candidat = read_excel("df2017.xlsx", sheet = "candidat")
+df_choix = read_excel("df2017.xlsx", sheet = "choix")
+df_test = read_excel("df2017.xlsx", sheet = "test")
+df_note = read_excel("df2017.xlsx", sheet = "note")
+```
+
+
+```{r}
+df = df_candidat
+df = df_candidat%>%filter(serie == "D")
+df = df[which(df$FiliereAccueil != "echec"), ]
+df = na.omit(df)
+df_choix$annee = as.numeric(df_choix$annee)
+df = df%>%left_join(df_choix, by=c("identifiantCandidat","annee"))
+df = df%>%left_join(df_note, by=c("identifiantCandidat", "annee"))
+df = df[,apply(df, 2, function(x) !all(is.na(x)))]
+```
+
+
+```{r}
+see_col_with_index = function(df) {
+  for (j in 1:length(colnames(df))) {
+    cat(j, "-", colnames(df)[j])
+    if (j%%3 == 0) {
+      cat("\n")
+    } else {
+      cat("\t\t\t")
+    }
+  }
+}
+see_col_with_index(df)
+```
+
+```{r}
+df = df[, -c(1:3, 5:6, 12, 13, 15:71)]
+df$rangEnTerminale[df$rangEnTerminale !="1" & df$rangEnTerminale != "2" & df$rangEnTerminale != "3"] = "0"
+df = cbind(df%>%select(-FiliereAccueil), df%>%select(FiliereAccueil))
+str(df)
+```
+
+
+
+```{r}
+k = 1
+for (i in colnames(df)) {
+  if(k > 6 && k < 27 && k != length(colnames(df))) {
+    df[, colnames(df%>%select(i))[1]] = as.double(unlist(df%>%select(i)))
+  } else {
+    df[, colnames(df%>%select(i))[1]] = as.factor(unlist(df%>%select(i)))
+  }
+  k = k + 1
+}
+
+str(df)
+```
+
+```{r}
+df = df[which(df$FiliereAccueil != "echec"), ]
+cat(
+  "total candidat:", nrow(df), 
+  "\ntotal par année:\n\tcandidat 2017:", nrow(df%>%filter(annee == 2017)),
+  "\n\tcandidat 2018:", nrow(df%>%filter(annee == 2018))
+)
+```
+```{r}
+(filiere = unique(df$FiliereAccueil))
+```
+
+
+
+```{r}
+set.seed(1)
+prop_2017 = round((nrow(df%>%filter(annee == 2017))/nrow(df)) * 100)
+prop_2018 = 100 - prop_2017
+
+nb_total_train = round((nrow(df)*70)/100)
+
+
+
+tmp = df%>%filter(annee == 2017)
+liste_2017 = sample(nrow(tmp), nb_total_train * prop_2017 / 100, replace = FALSE)
+train = tmp%>%select(-annee)
+
+tmp = df%>%filter(annee == 2018)
+liste_2018 = sample(nrow(tmp), nb_total_train * prop_2018 / 100, replace = FALSE)
+train = rbind(train, tmp[liste_2018, ]%>%select(-annee))
+
+test = setdiff(df%>%select(-annee), train)
+
+#intersect(train, df%>%select(-annee))
+#train %in% df%>%select(-annee)
+#sum(data.frame(train) %in% data.frame(df%>%select(-annee)))
+```
+
+
+```{r}
+regm <- multinom(FiliereAccueil ~., data = train)
+```
+```{r}
+regm2 <- step(regm, direction = "backward")
+```
+```{r}
+summary(regm2)
+```
+
+```{r}
+car::Anova(regm)
+```
+
+
+```{r}
+prev_class = predict(regm2, newdata = df, type="class")
+(prev_class)
+```
+
+```{r}
+(matrice_confusion = table(prev_class, df$FiliereAccueil))
+```
+
+```{r}
+round((sum(diag(matrice_confusion))/sum(matrice_confusion))*100,2)
+```
+
+```{r}
+prev_prob <- data.frame(predict(regm2, newdata = test, type="prob"))
+per = (round(prev_prob, 4)*100)
+sort(per[4,], decreasing = T)
+```
+
+
+```{r}
+regm_final = multinom(formula = FiliereAccueil ~ genre + BAC_FRANCAIS + BAC_MATHEMATIQUES + 
+    `BAC_SCIENCES PHYSIQUES` + BAC_SVT + TLE_ANGLAIS, data = df)
+
+saveRDS(regm_final, file = "regression_logistique_meilleurs_choix.rds")
+```
+
+
